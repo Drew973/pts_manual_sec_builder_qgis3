@@ -5,7 +5,14 @@ from .section import section
 from .database_dialog.database_dialog import database_dialog
 
 
-class database_to_rte(database_dialog):
+class database_to_rte():
+    def __init__(self, host, database, user, password=''):
+        self.host=host
+        self.database=database
+        self.user=user
+        self.password=password
+        self.rte=rte()
+        
 
     def sql(self, query, sec):#sec=section object
         dirs = {'NB':'SB', 'SB':'NB', 'EB':'WB', 'WB':'EB', 'CW':'CW', 'AC':'AC'}
@@ -122,7 +129,17 @@ class database_to_rte(database_dialog):
         return new_sections
 
 
-
+    #returns list of sections without same label and direction consecutively
+    def remove_consecutive(self,sections):
+        last=sections[0]
+        new_sections=[last]
+        
+        for sec in sections:
+            if sec.label!=last.label or sec.reverse!=last.reverse:
+                new_sections.append(sec)
+            last=sec
+            
+        return new_sections
 
 
 
@@ -149,11 +166,11 @@ class database_to_rte(database_dialog):
                 
     #generate rte from list of section objects
     def make(self,sections,route_id):
-
-        self.cur = self.con.cursor(cursor_factory = psycopg2.extras.DictCursor)
+        self.con = psycopg2.connect(database=self.database,host=self.host,user=self.user,password=self.password)
+        self.cur = self.con.cursor(cursor_factory = psycopg2.extras.DictCursor)#return the db results as dict
         
-        new_sections=remove_consecutive(self.roundabout_dummys(sections))
-        self.rte=rte()
+        new_sections=self.remove_consecutive(self.roundabout_dummys(sections))
+        
         self.rte.R1_1(route_identifier=route_id,n_lanes=len(new_sections)-1)
         
         #remove dummys from start
@@ -250,19 +267,6 @@ def to_format(val,form):
     else:
         return ' '
 
-    #returns list of sections without same label and direction consecutively
-def remove_consecutive(sections):
-    last=sections[0]
-    new_sections=[last]
-        
-    for sec in sections:
-        if sec.label!=last.label or sec.reverse!=last.reverse:
-            new_sections.append(sec)
-        last=sec
-            
-    return new_sections
-
-    
 #sections=[section('2900A1/452'),section('2900A1/445'),section('2900A1/453'),section('2900A1/453')]
 #m=database_to_rte(database='pts1944-01_he',host='192.168.5.157',user='stuart')
 #print m.make(sections,route_id='test3.rte')

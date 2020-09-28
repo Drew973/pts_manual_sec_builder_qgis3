@@ -1,11 +1,9 @@
 import os
 from os import path
 
-#from PyQt4 import QtGui, uic
 from  qgis.PyQt import uic
 
-#from PyQt4.QtCore import pyqtSignal,QSettings
-from qgis.PyQt.QtCore import pyqtSignal,QSettings
+from qgis.PyQt.QtCore import pyqtSignal,QSettings,Qt
 
 from qgis.utils import iface
 #from qgis.gui import QgsFieldProxyModel
@@ -14,7 +12,7 @@ from qgis.core import QgsFieldProxyModel
 #from reading import RTESections,secSections
 from .write_rte import database_to_rte
 
-from qgis.PyQt.QtWidgets import QDockWidget,QFileDialog,QMessageBox,QShortcut
+from qgis.PyQt.QtWidgets import QDockWidget,QFileDialog,QMessageBox,QShortcut,QMenuBar,QMenu,QToolBar
 from qgis.PyQt.QtGui import QKeySequence
 
 from .sections import sections
@@ -25,6 +23,10 @@ from .read_sec import sec_to_sections
 from .layer_functions import selectSections,forward_dir
 from .secs_to_sr import secsToSR
 from .sr_to_secs import SRToSecs
+
+#from .database_dialog.database_dialog import database_dialog
+
+
 
 def fixHeaders(path):
     with open(path) as f:
@@ -52,18 +54,8 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         self.setupUi(self)
         
         self.addButton.released.connect(self.add)
-        self.selectButton.released.connect(self.select)
-        self.setSelectedButton.released.connect(self.setSelected)
-        self.removeButton.released.connect(self.remove)
-        self.saveAsSecButton.released.connect(self.saveAsSec)
-        self.saveAsRTEButton.released.connect(self.saveAsRTE)
-        self.saveAsSRButton.clicked.connect(self.saveAsSR)
         
         self.addDummyButton.released.connect(self.addDummy)
-        self.removeAllButton.clicked.connect(self.removeAll)
-        self.loadRTEButton.released.connect(self.loadRTE)
-        self.loadSecButton.released.connect(self.loadSec)
-        self.loadSRButton.clicked.connect(self.loadSR)
         self.sectionBox.setFilters(QgsFieldProxyModel.String)
         self.sectionBox.activated.connect(self.secFieldSet)
 
@@ -73,8 +65,6 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         self.s=QShortcut(QKeySequence('Ctrl+1'), self)
         self.s.activated.connect(self.add)
 
-        self.loadSecBox.addItems(['No','Yes','Leave blank'])
-
         self.sections=sections(table=self.secTable,spinbox=self.rowBox)
 
         self.layerBox.layerChanged.connect(self.layerChange)
@@ -82,8 +72,13 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         self.layerBox.setCurrentIndex(self.layerBox.findText(layer))#try to set to last value 
         self.layerBox.activated.connect(self.layerSet)
         self.layerChange(self.layerBox.currentLayer())
-
+        self.dd=database_to_rte(self)
+        self.dd.set(host='192.168.5.157',database='pts1944-01_he',user='stuart')
         
+        self.initSecMenu()
+        self.initTopMenu()
+
+   
                         
     def layerChange(self,layer):
         self.sectionBox.setLayer(layer)
@@ -130,11 +125,24 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
                 return
 
             sec=sf[0][secField]
-            s=section(label=sec,reverse=self.reverseBox.isChecked())
+            s=section(label=sec,reverse=self.rev())
             
             self.sections.add_section(s)
         
-       
+#reversed selected?
+    def rev(self):
+        if self.reversedBox.currentText()=='Yes':
+            return True
+        
+        if self.reversedBox.currentText()=='No':
+            return False
+        
+        if self.reversedBox.currentText()=='Leave Blank':
+            return None
+
+        raise KeyError('unknown reverse option')
+
+        
     def addDummy(self):
         self.sections.add_section(section(dummy=True,reverse=False))
 
@@ -173,7 +181,6 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
 
 
     def setFolder(self,p):
-        print(p)
         f=path.dirname(p)
         QSettings('pts', 'msb').setValue('folder',f)
 
@@ -182,19 +189,11 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         p=QFileDialog.getOpenFileName(caption='load .rte',filter='*.sec;;*',directory=self.lastFolder())[0]
         if p!='':
             self.setFolder(p)
-
-            t=self.loadSecBox.currentText()
-            if t=='Yes':
-                rev=True
-            if t=='No':
-                rev=False
-            if t=='Leave blank':
-                rev=None
-            
-            for s in sec_to_sections(p,rev):
+            for s in sec_to_sections(p,self.rev()):
                 self.sections.add_section(s)
+
         
-    def loadSR(self):
+    def loadSr(self):
         p=QFileDialog.getOpenFileName(caption='load .rte',filter='*.sr;;*',directory=self.lastFolder())[0]
         if p!='':
             self.setFolder(p)
@@ -226,17 +225,18 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
 
 
 
-    def saveAsRTE(self):
+    def saveAsRte(self):
+        self.dd.connect()
+        
         p=QFileDialog.getSaveFileName(self, 'Save File',filter='*.rte;;*',directory=self.lastFolder())[0]
         if p!='':
             if len(self.sections.secs)>0:
                 self.setFolder(p)
                 f,route_id = os.path.split(p)
-                rte = database_to_rte(database=self.database.text(),host=self.host.text(),user=self.user.text(),password=self.password.text)
                 
-                m=rte.make(self.sections.secs,route_id = route_id)
+                m=self.dd.make(self.sections.secs,route_id = route_id)
                 if m==True:
-                    rte.save(p)
+                    self.dd.save(p)
                     iface.messageBar().pushMessage("manual secbuilder:saved rte:"+p,duration=4)
                 else:
                     iface.messageBar().pushMessage("manual secbuilder error:error in making .rte "+m,duration=4)
@@ -244,7 +244,7 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
                     iface.messageBar().pushMessage("manual secbuilder:no sections to save.",duration=4)
  
 
-    def saveAsSR(self):
+    def saveAsSr(self):
         p=QFileDialog.getSaveFileName(self, 'Save File',filter='*.sr;;*',directory=self.lastFolder())[0]
         if p!='':
             if len(self.sections.secs)>0:
@@ -293,7 +293,7 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
             selected=self.sections.list_selected()
             if len(selected)==0:
                 selected=self.sections.list_sections()
-            selectSections(selected,self.layerBox.currentLayer(),self.sectionBox.currentField())
+            selectSections(selected,self.layerBox.currentLayer(),self.sectionBox.currentField(),True)
             
     
     def setSelected(self):
@@ -301,3 +301,72 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
             feats=self.layerBox.currentLayer().selectedFeatures()
             secs=[f[self.sectionBox.currentField()] for f in feats]
             self.sections.set_selected(secs)
+
+
+    def initTopMenu(self):
+#adding
+        self.topMenu=QMenuBar()
+        self.layout().setMenuBar(self.topMenu)
+        addMenu=self.topMenu.addMenu("add")
+        loadSecAct=addMenu.addAction('load .sec...')
+        loadSecAct.triggered.connect(self.loadSec)
+        loadRteAct=addMenu.addAction('load .rte...')
+        loadRteAct.triggered.connect(self.loadRTE)
+        loadSrAct=addMenu.addAction('load .sr...')
+        loadSrAct.triggered.connect(self.loadSr)
+
+
+#save
+        saveMenu=self.topMenu.addMenu("save")
+        
+        saveSrAct=saveMenu.addAction('save as .sr...')
+        saveSrAct.triggered.connect(self.saveAsSr)        
+
+        saveSecAct=saveMenu.addAction('save as .sec...')
+        saveSecAct.triggered.connect(self.saveAsSec)
+
+        saveSecAct=saveMenu.addAction('save as .rte...')
+        saveSecAct.triggered.connect(self.saveAsRte)
+
+        setingsMenu=self.topMenu.addMenu("settings")
+        setDatabaseAct=setingsMenu.addAction('set database...')
+        setDatabaseAct.triggered.connect(self.dd.show)
+        
+        #self.toolBar=QToolBar(self) 
+        #toolbar=self.addToolBar()
+        #topMenu = QMenuBar(self)
+        #topMenu.setDefaultUp(False)
+        #addMenu=topMenu.addMenu("add")
+        #saveMenu=topMenu.addMenu("save")
+
+
+#for requested view
+    def initSecMenu(self):
+        self.sec_menu = QMenu()
+        from_layer_act=self.sec_menu.addAction('set selected from layer')
+        from_layer_act.triggered.connect(self.setSelected)
+
+        zoomAct=self.sec_menu.addAction('zoom to selected')
+        zoomAct.triggered.connect(self.select)
+
+        delAct=self.sec_menu.addAction('delete selected rows')
+        delAct.triggered.connect(self.sections.remove_selected)
+
+        delAllAct=self.sec_menu.addAction('delete all rows')
+        delAllAct.triggered.connect(self.removeAll)        
+        
+        self.secTable.setContextMenuPolicy(Qt.CustomContextMenu);
+        self.secTable.customContextMenuRequested.connect(self.showSecMenu)
+
+
+    def showSecMenu(self,pt):
+        self.sec_menu.exec_(self.mapToGlobal(pt))
+
+
+
+
+
+
+
+
+            
