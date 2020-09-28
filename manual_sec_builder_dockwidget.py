@@ -12,14 +12,14 @@ from qgis.utils import iface
 from qgis.core import QgsFieldProxyModel
 
 #from reading import RTESections,secSections
-from .write_rte4 import database_to_rte
+from .write_rte import database_to_rte
 
 from qgis.PyQt.QtWidgets import QDockWidget,QFileDialog,QMessageBox,QShortcut
 from qgis.PyQt.QtGui import QKeySequence
 
 from .sections import sections
 from .section import section
-from .read_rte3 import rte_to_sections
+from .read_rte import rte_to_sections
 from .read_sec import sec_to_sections
 
 from .layer_functions import selectSections,forward_dir

@@ -266,7 +266,6 @@ def to_format(val,form):
         return ' '
 
 #sections=[section('2900A1/452'),section('2900A1/445'),section('2900A1/453'),section('2900A1/453')]
-
 #m=database_to_rte(database='pts1944-01_he',host='192.168.5.157',user='stuart')
 #print m.make(sections,route_id='test3.rte')
 #print m.rte.output()
