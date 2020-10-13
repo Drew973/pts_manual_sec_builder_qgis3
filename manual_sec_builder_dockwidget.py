@@ -266,14 +266,14 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         if not layer is None:
             return True
         else:
-            iface.messageBar().pushMessage("manual secbuilder error: no layer selected (under layer tab).",duration=4)
+            iface.messageBar().pushMessage("manual secbuilder error: no layer selected",duration=4)
             return False
 
 
     #checks section field is set
     def checkSectionFieldSet(self):
         if self.sectionBox.currentField()=='':
-            iface.messageBar().pushMessage("manual secbuilder: section field not set (check layer tab).",duration=4)
+            iface.messageBar().pushMessage("manual secbuilder: section field not set.",duration=4)
             return False        
         else:
             return True
@@ -282,7 +282,7 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
     #checks direction field is set
     def checkDirectionFieldSet(self):
         if self.directionBox.currentField()=='':
-            iface.messageBar().pushMessage("manual secbuilder: direction field not set (check layer tab).",duration=4)
+            iface.messageBar().pushMessage("manual secbuilder: direction field not set.",duration=4)
             return False
         else:
             return True
@@ -305,19 +305,23 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
 
     def initTopMenu(self):
 #adding
-        self.topMenu=QMenuBar()
-        self.layout().setMenuBar(self.topMenu)
-        addMenu=self.topMenu.addMenu("add")
+        #topMenu=self.titleBarWidget()
+        #topMenu=self.layout().menuBar() 
+        topMenu=QMenuBar()
+        #self.layout().setMenuBar(self.topMenu)
+        #topMenu=QMenuBar(self)#works but need to click '>>' button
+       
+        addMenu=topMenu.addMenu("add")
         loadSecAct=addMenu.addAction('load .sec...')
         loadSecAct.triggered.connect(self.loadSec)
         loadRteAct=addMenu.addAction('load .rte...')
         loadRteAct.triggered.connect(self.loadRTE)
         loadSrAct=addMenu.addAction('load .sr...')
         loadSrAct.triggered.connect(self.loadSr)
-
+    
 
 #save
-        saveMenu=self.topMenu.addMenu("save")
+        saveMenu=topMenu.addMenu("save")
         
         saveSrAct=saveMenu.addAction('save as .sr...')
         saveSrAct.triggered.connect(self.saveAsSr)        
@@ -328,7 +332,7 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         saveSecAct=saveMenu.addAction('save as .rte...')
         saveSecAct.triggered.connect(self.saveAsRte)
 
-        setingsMenu=self.topMenu.addMenu("settings")
+        setingsMenu=topMenu.addMenu("settings")
         setDatabaseAct=setingsMenu.addAction('set database...')
         setDatabaseAct.triggered.connect(self.dd.show)
         
@@ -338,7 +342,9 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         #topMenu.setDefaultUp(False)
         #addMenu=topMenu.addMenu("add")
         #saveMenu=topMenu.addMenu("save")
-
+        #self.layout().addWidget(topMenu)
+        self.main_widget.layout().setMenuBar(topMenu)
+        
 
 #for requested view
     def initSecMenu(self):
