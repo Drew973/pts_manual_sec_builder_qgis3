@@ -102,13 +102,20 @@ class msbModel(QtGui.QStandardItemModel):
         sections=[]
         for line in R2_1s:
             sec = line[0:30].strip()#section label.
-            direction = line[30:32].strip()# strip() removes whitespace from string
 
-            forwardDirection=str(layer_functions.forward_dir(sec,layer,labelField,directionField))
-            f = direction==forwardDirection#True if direction reversed. 
+            if sec:
+                direction = line[30:32].strip()# strip() removes whitespace from string
 
-            self.addRow(rowNumber=row,label=sec,isReversed=not f)
+                forwardDirection=str(layer_functions.forward_dir(sec,layer,labelField,directionField))
+                f = direction==forwardDirection#True if direction reversed. 
 
+                self.addRow(rowNumber=row,label=sec,isReversed=not f)
+                
+            else:
+                self.addDummy(row)
+
+            if row:
+                row+=1
 
 
     def loadSr(self,f,row=None):
