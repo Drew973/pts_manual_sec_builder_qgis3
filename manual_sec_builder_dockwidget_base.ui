@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>371</width>
-    <height>563</height>
+    <width>509</width>
+    <height>633</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -19,8 +19,11 @@
   <property name="minimumSize">
    <size>
     <width>371</width>
-    <height>250</height>
+    <height>327</height>
    </size>
+  </property>
+  <property name="focusPolicy">
+   <enum>Qt::StrongFocus</enum>
   </property>
   <property name="windowTitle">
    <string>manual sec builder</string>
@@ -31,14 +34,24 @@
      <widget class="QWidget" name="main_widget" native="true">
       <layout class="QVBoxLayout" name="verticalLayout">
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
-          <widget class="QPushButton" name="addButton">
-           <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Add selected feature of layer to list. Select 1 feature with &amp;quot;select features by area or single click&amp;quot; not with &amp;quot;identify features&amp;quot;.&lt;/p&gt;&lt;p&gt;Keyboard shortcut Ctrl 1.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-           </property>
+          <widget class="QLabel" name="label_7">
            <property name="text">
-            <string>add selected feature</string>
+            <string>Insert at row:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="rowBox">
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;New sections will be inserted at this row. Anything on or following this row moves downwards.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>999</number>
            </property>
           </widget>
          </item>
@@ -52,7 +65,7 @@
          <item>
           <widget class="QComboBox" name="reversedBox">
            <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Set reversed? column of rows to add from layer or from  .sec to this.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Value to use when adding from layer or .sec&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
            </property>
            <item>
             <property name="text">
@@ -71,20 +84,10 @@
            </item>
           </widget>
          </item>
-         <item>
-          <widget class="QPushButton" name="addDummyButton">
-           <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Add dummy to list.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-           </property>
-           <property name="text">
-            <string>add dummy</string>
-           </property>
-          </widget>
-         </item>
         </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_3">
+        <layout class="QHBoxLayout" name="horizontalLayout">
          <item>
           <widget class="QLabel" name="label_2">
            <property name="text">
@@ -95,14 +98,10 @@
          <item>
           <widget class="QgsMapLayerComboBox" name="layerBox">
            <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Layer to select things on.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Layer with network.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
            </property>
           </widget>
          </item>
-        </layout>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout">
          <item>
           <widget class="QLabel" name="label">
            <property name="text">
@@ -117,56 +116,12 @@
            </property>
           </widget>
          </item>
-         <item>
-          <widget class="QLabel" name="label_6">
-           <property name="text">
-            <string>direction field</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QgsFieldComboBox" name="directionBox">
-           <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Field of layer with direction code (like NB,EB...). Must be text. Only text fields shown. Only has an effect when loading an rte.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-           </property>
-          </widget>
-         </item>
         </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_7">
-         <item>
-          <widget class="QLabel" name="label_7">
-           <property name="text">
-            <string>at row:</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QSpinBox" name="rowBox">
-           <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;New sections will be inserted at this row. Anything on or following this row moves downwards.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-           </property>
-           <property name="minimum">
-            <number>1</number>
-           </property>
-           <property name="maximum">
-            <number>999</number>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QTableWidget" name="secTable">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
+        <widget class="QTableView" name="tableView">
          <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Right click for options.&lt;/p&gt;&lt;p&gt;Double click on reversed? cell to change it.&lt;/p&gt;&lt;p&gt;Reversed means in CR1.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="selectionMode">
-          <enum>QAbstractItemView::MultiSelection</enum>
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Section label and if surveyed in opposite direction to section.&lt;/p&gt;&lt;p&gt;Select multiple rows by clicking numbers, shift+click or control+click .&lt;/p&gt;&lt;p&gt;Right click for options.&lt;/p&gt;&lt;p&gt;Double click on cell to edit it.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
          <property name="selectionBehavior">
           <enum>QAbstractItemView::SelectRows</enum>

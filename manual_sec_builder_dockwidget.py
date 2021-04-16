@@ -1,31 +1,24 @@
 import os
 from os import path
 
+from PyQt5 import QtGui
+
+
+from PyQt5.Qt import QItemSelectionModel
+                      
 from  qgis.PyQt import uic
-
 from qgis.PyQt.QtCore import pyqtSignal,QSettings,Qt
-
 from qgis.utils import iface
-#from qgis.gui import QgsFieldProxyModel
 from qgis.core import QgsFieldProxyModel
-
-#from reading import RTESections,secSections
-from .write_rte import database_to_rte
-
-from qgis.PyQt.QtWidgets import QDockWidget,QFileDialog,QMessageBox,QShortcut,QMenuBar,QMenu,QToolBar
+from qgis.PyQt.QtWidgets import QDockWidget,QFileDialog,QMessageBox,QShortcut,QMenuBar,QMenu,QToolBar,QAction
 from qgis.PyQt.QtGui import QKeySequence
 
-from .sections import sections
-from .section import section
-from .read_rte import rte_to_sections
-from .read_sec import sec_to_sections
-
 from .layer_functions import selectSections,forward_dir
-from .secs_to_sr import secsToSR
-from .sr_to_secs import SRToSecs
+from . import layer_functions
+from . makeRteDialog import makeRteDialog
+from . loadRteDialog import loadRteDialog
 
-#from .database_dialog.database_dialog import database_dialog
-
+from .msbModel import msbModel
 
 
 def fixHeaders(path):
@@ -52,42 +45,43 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
     def __init__(self, parent=None):
         super(manual_sec_builderDockWidget, self).__init__(parent)
         self.setupUi(self)
+
         
-        self.addButton.released.connect(self.add)
-        
-        self.addDummyButton.released.connect(self.addDummy)
         self.sectionBox.setFilters(QgsFieldProxyModel.String)
         self.sectionBox.activated.connect(self.secFieldSet)
-
-        self.directionBox.setFilters(QgsFieldProxyModel.String)
-        self.directionBox.activated.connect(self.dirFieldSet)
-        
-        self.s=QShortcut(QKeySequence('Ctrl+1'), self)
-        self.s.activated.connect(self.add)
-
-        self.sections=sections(table=self.secTable,spinbox=self.rowBox)
 
         self.layerBox.layerChanged.connect(self.layerChange)
         layer=QSettings('pts', 'msb').value('layer','',str)
         self.layerBox.setCurrentIndex(self.layerBox.findText(layer))#try to set to last value 
         self.layerBox.activated.connect(self.layerSet)
         self.layerChange(self.layerBox.currentLayer())
-        self.dd=database_to_rte(self)
-        self.dd.set(host='192.168.5.157',database='pts1944-01_he',user='stuart')
         
-        self.initSecMenu()
         self.initTopMenu()
+        self.initTableMenu()
+        
+        self.rteDialog=makeRteDialog(parent=self,layerBox=self.layerBox,labelBox=self.sectionBox)
+        self.rteDialog.buttonBox.accepted.connect(lambda:self.rteDialog.make(self.model.sectionLabels(),self.model.directions()))
 
-   
+
+        self.loadRteDialog = loadRteDialog(parent=self,layerBox=self.layerBox)
+#load(self,layer,labelField,model,row=None,clear=False)
+
+
+        self.model=msbModel(self)
+            
+
+        self.tableView.setModel(self.model)
+        initDragAndDrop(self.tableView)
+
+        self.model.countChanged.connect(self.rowCountChanged)
+
+
                         
     def layerChange(self,layer):
         self.sectionBox.setLayer(layer)
         sf=QSettings('pts', 'msb').value('sectionField','',str)
         self.sectionBox.setCurrentIndex(self.sectionBox.findText(sf))
-
-        self.directionBox.setLayer(layer)
         sd=QSettings('pts', 'msb').value('directionField','',str)
-        self.directionBox.setCurrentIndex(self.directionBox.findText(sd))
 
 
 
@@ -96,25 +90,68 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         if sf!='':
             QSettings('pts', 'msb').setValue('sectionField',sf)
 
-
-    def dirFieldSet(self):
-        sf=self.directionBox.currentField()
-        if sf!='':
-            QSettings('pts', 'msb').setValue('directionField',sf)        
-
         
     def layerSet(self):
         layer=self.layerBox.currentLayer().name()
         QSettings('pts', 'msb').setValue('layer',layer)
     
     
-    def add(self):
-        if self.checkLayerSet() and self.checkSectionFieldSet():
+
+    #row=row number
+    def addRow(self,label,isReversed=None,rowNumber=None):
+        self.model.addRow(label,isReversed,rowNumber)
+
+
+
+    def rowCountChanged(self,change):
+        newCount = self.model.rowCount()
+        #print('change %s, newCount %s'%(change,newCount))
+ 
+        v = self.rowBox.value()+change
+        self.rowBox.setMaximum(newCount+1)
+        #if v<self.rowBox.minimum():
+         #   v = self.rowBox.minimum()
         
-            sl=self.layerBox.currentLayer()
-            secField=self.sectionBox.currentField()
-          
-            sf=sl.selectedFeatures()
+        #if v>self.rowBox.maximum():
+        #    v = self.rowBox.maximum()
+
+        self.rowBox.setValue(v)
+
+
+
+    #for requested view
+    def initTableMenu(self):
+        self.tableMenu = QMenu()
+        from_layer_act=self.tableMenu.addAction('set selected from layer')
+        from_layer_act.triggered.connect(self.selectedFromFeatures)
+
+        zoomAct=self.tableMenu.addAction('select on layer')
+        zoomAct.triggered.connect(self.selectOnLayer)
+
+        delAct=self.tableMenu.addAction('delete selected rows')
+        delAct.triggered.connect(lambda:dropSelectedRows(self.tableView))
+
+        delAllAct=self.tableMenu.addAction('delete all rows')
+        delAllAct.triggered.connect(self.removeAll)        
+        
+        self.tableView.setContextMenuPolicy(Qt.CustomContextMenu);
+        self.tableView.customContextMenuRequested.connect(lambda pt:self.tableMenu.exec_(self.tableView.mapToGlobal(pt)))
+
+
+
+    def addDummy(self):
+        self.model.addDummy(row=self.rowBox.value())
+
+
+    #add selected feature of layer
+    def addFeature(self):
+
+        layer=self.getLayer()
+        field=self.getLabelField()
+        
+        if layer and field:
+            
+            sf=layer.selectedFeatures()
             
             if len(sf)>1:
                 iface.messageBar().pushMessage("manual sec builder: >1 feature selected",duration=4)
@@ -124,52 +161,25 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
                 iface.messageBar().pushMessage("manual secbuilder: no features selected.",duration=4)
                 return
 
-            sec=sf[0][secField]
-            s=section(label=sec,reverse=self.rev())
-            
-            self.sections.add_section(s)
-        
+            sec=sf[0][field]
+            self.addRow(label=sec,isReversed=self.rev(),rowNumber=self.rowBox.value()-1)
+
+
+
+    def loadSec(self,row=None,clear=False):
+        p=QFileDialog.getOpenFileName(caption='load .rte',filter='*.sec;;*',directory=self.lastFolder())[0]
+        if p!='':
+            self.setFolder(p)
+
+            with open(p,'r') as f:
+                self.model.loadSec(f=f,rev=self.rev(),row=row,clear=clear)
+                
+            iface.messageBar().pushMessage("manual secbuilder:loaded "+p,duration=4)
+
+
 #reversed selected?
     def rev(self):
-        if self.reversedBox.currentText()=='Yes':
-            return True
-        
-        if self.reversedBox.currentText()=='No':
-            return False
-        
-        if self.reversedBox.currentText()=='Leave Blank':
-            return None
-
-        raise KeyError('unknown reverse option')
-
-        
-    def addDummy(self):
-        self.sections.add_section(section(dummy=True,reverse=False))
-
-
-    def loadRTE(self):
-        if self.checkLayerSet() and self.checkSectionFieldSet() and self.checkDirectionFieldSet():
-            p=QFileDialog.getOpenFileName(caption='load .rte',filter='*.rte;;*',directory=self.lastFolder())[0]
-
-            if p!='':
-                self.setFolder(p)
-                secs=rte_to_sections(p)#list of section objects
-
-                for sec in secs:
-                    if not sec.dummy:
-                        try:
-                            fd=forward_dir(sec.label,self.layerBox.currentLayer(),self.sectionBox.currentField(),self.directionBox.currentField())
-                           
-                            if fd==sec.direction:
-                                sec.reverse=False
-
-                            if fd==sec.opposite_direction():
-                                sec.reverse=True
-
-                        except:
-                            iface.messageBar().pushMessage("manual secbuilder: could not find section %s in layer. reversed? not set. "%(sec.label),duration=4)
-                                                    
-                    self.sections.add_section(sec)  
+        return self.model.revToBool(self.reversedBox.currentText())
                 
                 
     def lastFolder(self):
@@ -184,75 +194,83 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         f=path.dirname(p)
         QSettings('pts', 'msb').setValue('folder',f)
 
-        
-    def loadSec(self):
-        p=QFileDialog.getOpenFileName(caption='load .rte',filter='*.sec;;*',directory=self.lastFolder())[0]
-        if p!='':
-            self.setFolder(p)
-            for s in sec_to_sections(p,self.rev()):
-                self.sections.add_section(s)
 
         
-    def loadSr(self):
+    def loadSr(self,row=None,clear=False):
         p=QFileDialog.getOpenFileName(caption='load .rte',filter='*.sr;;*',directory=self.lastFolder())[0]
-        if p!='':
+        if p:
             self.setFolder(p)
-            for s in SRToSecs(p):
-                self.sections.add_section(s)
 
-
-    def remove(self):
-        self.sections.remove_selected()
+            if clear:
+                self.model.clear()
+                
+            with open(p,'r') as f:
+                self.model.loadSr(f,row)
+                
+            iface.messageBar().pushMessage("manual secbuilder:loaded "+p,duration=4)
         
 
 
     def removeAll(self):
         response = QMessageBox.question(self,'remove all','remove all sections from table?',QMessageBox.Yes | QMessageBox.No)
         if response== QMessageBox.Yes:
-            self.sections.clear()
+            self.model.clear()
 
 
-    
+
     def saveAsSec(self):
         p=QFileDialog.getSaveFileName(self, 'Save File',filter='*.sec;;*',directory=self.lastFolder())[0]
-        if p!='':
-            if len(self.sections.secs)>0:
-                self.setFolder(p)
-                self.sections.to_sec(p)
-                iface.messageBar().pushMessage("manual secbuilder:saved sec:"+p,duration=4)
-            else:
+        if p:
+
+            if self.model.rowCount()==0:
                 iface.messageBar().pushMessage("manual secbuilder:no sections to save:",duration=4)
+                return
+            
+            self.setFolder(p)
+
+            with open(p,'w') as f:
+                self.model.saveSec(f=f)
+
+            iface.messageBar().pushMessage("manual secbuilder:saved sec:"+p,duration=4)
 
 
+   # list of section labels
+    def sectionLabels(self):
+        return [self.model.item(r,0).data(Qt.EditRole) for r in range(0,self.model.rowCount())]
+
+
+    #list of features   
+    def features(self):
+        layer=self.getLayer()
+        labelField=self.getLabelField()
+        if layer and labelField:
+            return[layer_functions.getFeature(layer,labelField,val) for val in self.sectionLabels()]
+
+
+    #list of reversed column 
+    def directions(self):
+        return [self.model.item(r,1).data(Qt.EditRole) for r in range(0,self.model.rowCount())]
+    
 
     def saveAsRte(self):
-        self.dd.connect()
-        
-        p=QFileDialog.getSaveFileName(self, 'Save File',filter='*.rte;;*',directory=self.lastFolder())[0]
-        if p!='':
-            if len(self.sections.secs)>0:
-                self.setFolder(p)
-                f,route_id = os.path.split(p)
-                
-                m=self.dd.make(self.sections.secs,route_id = route_id)
-                if m==True:
-                    self.dd.save(p)
-                    iface.messageBar().pushMessage("manual secbuilder:saved rte:"+p,duration=4)
-                else:
-                    iface.messageBar().pushMessage("manual secbuilder error:error in making .rte "+m,duration=4)
-            else:
-                    iface.messageBar().pushMessage("manual secbuilder:no sections to save.",duration=4)
- 
+        self.rteDialog.show()
+
+
 
     def saveAsSr(self):
         p=QFileDialog.getSaveFileName(self, 'Save File',filter='*.sr;;*',directory=self.lastFolder())[0]
-        if p!='':
-            if len(self.sections.secs)>0:
-                self.setFolder(p)
-                secsToSR(self.sections.secs,p)
-                iface.messageBar().pushMessage("manual secbuilder:saved .sr:"+p,duration=4)
-            else:
+        if p:
+            if self.model.rowCount()==0:
                 iface.messageBar().pushMessage("manual secbuilder:no sections to save:",duration=4)
+                return
+            
+            self.setFolder(p)
+
+            with open(p,'w') as f:
+                self.model.saveSr(f,header=True)
+                                      
+            iface.messageBar().pushMessage("manual secbuilder:saved .sr:"+p,duration=4)
+                
 
         
     def closeEvent(self, event):
@@ -260,119 +278,160 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         event.accept()
 
 
-    #checks layer is set
-    def checkLayerSet(self):
+    def getLayer(self):
         layer = self.layerBox.currentLayer()
-        if not layer is None:
-            return True
+        if layer:
+            return layer
         else:
-            iface.messageBar().pushMessage("manual secbuilder error: no layer selected",duration=4)
-            return False
+            iface.messageBar().pushMessage("manual secbuilder: no layer selected",duration=4)
 
 
-    #checks section field is set
-    def checkSectionFieldSet(self):
-        if self.sectionBox.currentField()=='':
+    def getLabelField(self):
+        field = self.sectionBox.currentField()
+        if field:
+            return field
+        else:
             iface.messageBar().pushMessage("manual secbuilder: section field not set.",duration=4)
-            return False        
-        else:
-            return True
 
+    
+    def selectOnLayer(self):
+        layer = self.getLayer()
+        field = self.getLabelField()       
+        sections = [self.model.item(row,0).data(Qt.EditRole) for row in selectedRows(self.tableView)]#selected sections
 
-    #checks direction field is set
-    def checkDirectionFieldSet(self):
-        if self.directionBox.currentField()=='':
-            iface.messageBar().pushMessage("manual secbuilder: direction field not set.",duration=4)
-            return False
-        else:
-            return True
-        
-    
-    def select(self):
-        if self.checkLayerSet() and self.checkSectionFieldSet():
-            selected=self.sections.list_selected()
-            if len(selected)==0:
-                selected=self.sections.list_sections()
-            selectSections(selected,self.layerBox.currentLayer(),self.sectionBox.currentField(),True)
-            
-    
-    def setSelected(self):
-        if self.checkLayerSet() and self.checkSectionFieldSet():
-            feats=self.layerBox.currentLayer().selectedFeatures()
-            secs=[f[self.sectionBox.currentField()] for f in feats]
-            self.sections.set_selected(secs)
+        if layer and field:
+            layer_functions.selectValues(layer,field,sections)
+
 
 
     def initTopMenu(self):
-#adding
-        #topMenu=self.titleBarWidget()
-        #topMenu=self.layout().menuBar() 
-        topMenu=QMenuBar()
-        #self.layout().setMenuBar(self.topMenu)
-        #topMenu=QMenuBar(self)#works but need to click '>>' button
-       
-        addMenu=topMenu.addMenu("add")
-        loadSecAct=addMenu.addAction('load .sec...')
-        loadSecAct.triggered.connect(self.loadSec)
-        loadRteAct=addMenu.addAction('load .rte...')
-        loadRteAct.triggered.connect(self.loadRTE)
-        loadSrAct=addMenu.addAction('load .sr...')
-        loadSrAct.triggered.connect(self.loadSr)
+        topMenu=QMenuBar()       
+
+
+        ######################load
+        loadMenu=topMenu.addMenu("Load")
+        loadSecAct=loadMenu.addAction('Load .sec...')
+        loadSecAct.triggered.connect(lambda:self.loadSec(clear=True))
+
+        loadRteAct=loadMenu.addAction('Load .rte...')
+        loadRteAct.triggered.connect(lambda:self.loadRteDialog.show(clearMode=True))
+
+        loadSrAct=loadMenu.addAction('Load .sr...')
+        loadSrAct.triggered.connect(lambda:self.loadSr(clear=True))
+
+
+        ##################insert
+        insertMenu=topMenu.addMenu("Insert")
+        insertMenu.setToolTipsVisible(True)
+
+
+        insertSecAct=insertMenu.addAction('Insert .sec...')
+        insertSecAct.triggered.connect(lambda:self.loadSec(row=self.rowBox.value(),clear=False))
+        insertSecAct.setToolTip('insert .sec file using selected row and direction')
+
     
+        insertRteAct=insertMenu.addAction('Insert .rte...')
+        insertRteAct.triggered.connect(lambda:self.loadRteDialog.show(clearMode=False))
+        insertRteAct.setToolTip('insert .rte file at row')
 
-#save
-        saveMenu=topMenu.addMenu("save")
+
+        insertSrAct=insertMenu.addAction('Insert .sr...')
+        insertSrAct.triggered.connect(lambda:self.loadSr(row=self.rowBox.value(),clear=False))
+        insertSrAct.setToolTip('insert .sr file at row')
         
-        saveSrAct=saveMenu.addAction('save as .sr...')
-        saveSrAct.triggered.connect(self.saveAsSr)        
 
-        saveSecAct=saveMenu.addAction('save as .sec...')
+        self.addFeatureAct = insertMenu.addAction('Add Selected Feature')
+        self.addFeatureAct.setShortcut(QKeySequence('Alt+1'))#focus policy of dockwidget probably important here
+        self.addFeatureAct.triggered.connect(self.addFeature)
+        self.addFeatureAct.setToolTip('Insert selected feature of layer using selected row and direction')
+
+        self.addDummyAct = insertMenu.addAction('Add Dummy')
+        self.addDummyAct.setShortcut(QKeySequence('Alt+2'))#focus policy of dockwidget probably important here
+        self.addDummyAct.triggered.connect(self.addDummy)
+        self.addDummyAct.setToolTip('Insert dummy at row')
+
+        ############################################save
+        saveMenu=topMenu.addMenu("Save")
+        
+        saveSrAct=saveMenu.addAction('Save as .sr...')
+        saveSrAct.triggered.connect(self.saveAsSr)
+
+        saveSecAct=saveMenu.addAction('Save as .sec...')
         saveSecAct.triggered.connect(self.saveAsSec)
 
-        saveSecAct=saveMenu.addAction('save as .rte...')
-        saveSecAct.triggered.connect(self.saveAsRte)
-
-        setingsMenu=topMenu.addMenu("settings")
-        setDatabaseAct=setingsMenu.addAction('set database...')
-        setDatabaseAct.triggered.connect(self.dd.show)
+        saveRteAct=saveMenu.addAction('Save as .rte...')
+        saveRteAct.triggered.connect(self.saveAsRte)
         
-        #self.toolBar=QToolBar(self) 
-        #toolbar=self.addToolBar()
-        #topMenu = QMenuBar(self)
-        #topMenu.setDefaultUp(False)
-        #addMenu=topMenu.addMenu("add")
-        #saveMenu=topMenu.addMenu("save")
-        #self.layout().addWidget(topMenu)
         self.main_widget.layout().setMenuBar(topMenu)
         
 
-#for requested view
-    def initSecMenu(self):
-        self.sec_menu = QMenu()
-        from_layer_act=self.sec_menu.addAction('set selected from layer')
-        from_layer_act.triggered.connect(self.setSelected)
+    #surveys need to start at start node and finish at end node. 
+    #for roundabouts there will be a dummy between end node of last section and start node of roundabout.
+    #another between end node of roundabout and start node of next section.
+    def addRoundaboutDummys(self):
+        pass
 
-        zoomAct=self.sec_menu.addAction('zoom to selected')
-        zoomAct.triggered.connect(self.select)
 
-        delAct=self.sec_menu.addAction('delete selected rows')
-        delAct.triggered.connect(self.sections.remove_selected)
-
-        delAllAct=self.sec_menu.addAction('delete all rows')
-        delAllAct.triggered.connect(self.removeAll)        
+#select rows matching selected features of layer
+    def selectedFromFeatures(self):
+        layer=self.getLayer()
+        field=self.getLabelField()
         
-        self.secTable.setContextMenuPolicy(Qt.CustomContextMenu);
-        self.secTable.customContextMenuRequested.connect(self.showSecMenu)
-
-
-    def showSecMenu(self,pt):
-        self.sec_menu.exec_(self.mapToGlobal(pt))
-
-
-
-
-
-
-
-
+        if layer and field:
+            sections=[f[field] for f in layer.selectedFeatures()]
+            selectRowsFromValues(tableView=self.tableView,column=0,values=sections)
             
+
+
+def dropSelectedRows(tableView):
+    model=tableView.model()
+    rows=[r.row() for r in tableView.selectionModel().selectedRows()]#selectedRows() returns list of indexes
+    for r in sorted(rows,reverse=True):
+        model.takeRow(r)
+
+
+def selectedRows(tableView):
+    return [r.row() for r in tableView.selectionModel().selectedRows()]
+
+
+#select rows where column matches values
+def selectRowsFromValues(tableView,column,values,clearSelection=True):
+    model=tableView.model()
+    
+    items=[]
+    for v in values:
+        items+=model.findItems(v,column=column)
+    
+    indexes=[i.index() for i in items]
+
+    for c in range(model.columnCount()):
+        indexes += [i.siblingAtColumn(c) for i in indexes]#add indexes for second column
+    
+    
+    tableView.selectionModel().clearSelection()
+    for i in indexes:
+        tableView.selectionModel().select(i,QItemSelectionModel.Select)
+
+
+
+def initDragAndDrop(tableView):
+    tableView.setSelectionBehavior(tableView.SelectRows)
+   # tableView.setSelectionMode(tableView.SingleSelection)
+    tableView.setDragDropMode(tableView.InternalMove)
+    tableView.setDragDropOverwriteMode(False)
+
+
+#unused
+#select row where column=value
+def selectRowFromValue(tableView,column,value):
+    rows = [i.index().row() for i in tableView.model().findItems(value,column=column)]
+
+
+    
+#unused
+#list of qstandarditem s from QStandardItemModel. For some crazy reason QStandardItemModel only has takeRow(row)
+def getRow(model,row:int):
+    return [model.data(model.index(row,c)) for c in range(model.columnCount())]
+
+
+           
