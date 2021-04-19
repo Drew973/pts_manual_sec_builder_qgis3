@@ -3,11 +3,10 @@ from os import path
 
 from PyQt5 import QtGui
 
-
 from PyQt5.Qt import QItemSelectionModel
                       
 from  qgis.PyQt import uic
-from qgis.PyQt.QtCore import pyqtSignal,QSettings,Qt
+from qgis.PyQt.QtCore import pyqtSignal,QSettings,Qt,QUrl
 from qgis.utils import iface
 from qgis.core import QgsFieldProxyModel
 from qgis.PyQt.QtWidgets import QDockWidget,QFileDialog,QMessageBox,QShortcut,QMenuBar,QMenu,QToolBar,QAction
@@ -362,8 +361,16 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         saveRteAct=saveMenu.addAction('Save as .rte...')
         saveRteAct.triggered.connect(self.saveAsRte)
         
-        self.main_widget.layout().setMenuBar(topMenu)
         
+        #######################help
+
+        helpMenu=topMenu.addMenu('Help')  
+        openHelpAct=helpMenu.addAction('Open help (in your default web browser)')
+        openHelpAct.triggered.connect(self.openHelp)
+
+        
+        self.main_widget.layout().setMenuBar(topMenu)
+
 
     #surveys need to start at start node and finish at end node. 
     #for roundabouts there will be a dummy between end node of last section and start node of roundabout.
@@ -371,6 +378,15 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
     def addRoundaboutDummys(self):
         pass
 
+
+#opens help/index.html in default browser
+    def openHelp(self):
+        helpPath = os.path.join(os.path.dirname(__file__),'help','overview.html')
+        helpPath = 'file:///'+os.path.abspath(helpPath)
+        print(helpPath)
+        QtGui.QDesktopServices.openUrl(QUrl(helpPath))
+
+        
 
 #select rows matching selected features of layer
     def selectedFromFeatures(self):
