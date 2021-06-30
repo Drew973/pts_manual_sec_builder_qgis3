@@ -16,9 +16,6 @@ class msbModel(QtGui.QStandardItemModel):
         self.setHorizontalHeaderLabels(self.headerLabels)
 
 
-        self.revs=['Yes','No','Leave Blank']
-        self.bools=[True,False,None]
-
 
     def dropMimeData(self, data, action, row, col, parent):
         """
@@ -69,21 +66,26 @@ class msbModel(QtGui.QStandardItemModel):
         self.setHorizontalHeaderLabels(self.headerLabels)
         self.countChanged.emit(-rc)
 
-    
-#f is field like object with readlines() method
-#returns number of rows added.
-    def loadSec(self,f,rev,row=None,clear=False):        
+
+    def loadSec(self,f,rev,row,clear=False):
         if clear:
             self.clear()
-            self.setHorizontalHeaderLabels(self.headerLabels)
 
-        n=0
         for line in f.readlines():
-            self.addRow(label=line.strip(),isReversed=rev,rowNumber=row)
-            n+=1
+
+            if isDummy(line):
+                self.addDummy(row)
+
+            else:
+                r=line.strip().split(',')
+                label=r[0]
+            
+                if label!='section':#not header
+                    self.addRow(rowNumber=row,label=label,isReversed=rev)
+                     
             if row:
                 row+=1
-        #adds line by line
+                
 
 
 #sec is field like object with readlines() method
@@ -99,7 +101,6 @@ class msbModel(QtGui.QStandardItemModel):
         n=int(lines[0][63:69])#number of lanes is 1st line of file 63:69
         R2_1s=lines[1:n+1]#2.1 type records
                 
-        sections=[]
         for line in R2_1s:
             sec = line[0:30].strip()#section label.
 
@@ -132,24 +133,7 @@ class msbModel(QtGui.QStandardItemModel):
         self.addRow(label='D',isReversed=None,rowNumber=row)
 
 
-    def loadSec(self,f,rev,row,clear=False):
-        if clear:
-            self.clear()
 
-        for line in f.readlines():
-
-            if isDummy(line):
-                self.addDummy(row)
-
-            else:
-                r=line.strip().split(',')
-                label=r[0]
-            
-                if label!='section':#not header
-                    self.addRow(rowNumber=row,label=label,isReversed=rev)
-                     
-            if row:
-                row+=1
 
 
     def saveSec(self,f):
@@ -177,13 +161,28 @@ class msbModel(QtGui.QStandardItemModel):
 
 
     def revToBool(self,rev):
-        i=self.revs.index(rev)
-        return self.bools[i]
+        if not rev:
+            return None
+        
+        if rev.lower()=='no':
+            return False
+        
+        if rev.lower()=='yes':
+            return True
+
 
 
     def boolToRev(self,b):
-        i=self.bools.index(b)
+       
+        if b is None:
+            return ''
         
+        if b:
+            return 'Yes'
+        
+        if b==False:
+            return 'No'
+
             
 
     #surveys need to start at start node and finish at end node. 
