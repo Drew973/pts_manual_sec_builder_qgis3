@@ -9,7 +9,7 @@ from  qgis.PyQt import uic
 from qgis.PyQt.QtCore import pyqtSignal,QSettings,Qt,QUrl
 from qgis.utils import iface
 from qgis.core import QgsFieldProxyModel
-from qgis.PyQt.QtWidgets import QDockWidget,QFileDialog,QMessageBox,QShortcut,QMenuBar,QMenu,QToolBar,QAction
+from qgis.PyQt.QtWidgets import QDockWidget,QFileDialog,QMessageBox,QShortcut,QMenuBar,QMenu,QToolBar,QAction,QDialog
 from qgis.PyQt.QtGui import QKeySequence
 
 from .layer_functions import selectSections,forward_dir
@@ -45,12 +45,16 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         super(manual_sec_builderDockWidget, self).__init__(parent)
         self.setupUi(self)
 
+        self.rteDialog = makeRteDialog(parent=self)#persistant.
+
+        self.loadRteDialog = loadRteDialog(parent=self)
+        self.loadRteDialog.accepted.connect(self.loadRte)
         
         self.sectionBox.setFilters(QgsFieldProxyModel.String)
         self.sectionBox.activated.connect(self.secFieldSet)
 
         self.layerBox.layerChanged.connect(self.layerChange)
-        layer=QSettings('pts', 'msb').value('layer','',str)
+        layer = QSettings('pts', 'msb').value('layer','',str)
         self.layerBox.setCurrentIndex(self.layerBox.findText(layer))#try to set to last value 
         self.layerBox.activated.connect(self.layerSet)
         self.layerChange(self.layerBox.currentLayer())
@@ -58,16 +62,11 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         self.initTopMenu()
         self.initTableMenu()
         
-        self.rteDialog=makeRteDialog(parent=self,layerBox=self.layerBox,labelBox=self.sectionBox)
-        self.rteDialog.buttonBox.accepted.connect(lambda:self.rteDialog.make(self.model.sectionLabels(),self.model.directions()))
+        self.rteDialog.buttonBox.accepted.connect(self.saveAsRte)
+        self.rteDialog.buttonBox.accepted.connect(self.rteDialog.hide)
 
 
-        self.loadRteDialog = loadRteDialog(parent=self,layerBox=self.layerBox)
-#load(self,layer,labelField,model,row=None,clear=False)
-
-
-        self.model=msbModel(self)
-            
+        self.model = msbModel(self)
 
         self.tableView.setModel(self.model)
         initDragAndDrop(self.tableView)
@@ -75,12 +74,13 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         self.model.countChanged.connect(self.rowCountChanged)
 
 
-                        
     def layerChange(self,layer):
         self.sectionBox.setLayer(layer)
         sf=QSettings('pts', 'msb').value('sectionField','',str)
         self.sectionBox.setCurrentIndex(self.sectionBox.findText(sf))
-        sd=QSettings('pts', 'msb').value('directionField','',str)
+        sd = QSettings('pts', 'msb').value('directionField','',str)
+        self.rteDialog.setLayer(layer)
+        self.loadRteDialog.setLayer(layer)
 
 
 
@@ -94,28 +94,17 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         layer=self.layerBox.currentLayer().name()
         QSettings('pts', 'msb').setValue('layer',layer)
     
-    
 
     #row=row number
     def addRow(self,label,isReversed=None,rowNumber=None):
         self.model.addRow(label,isReversed,rowNumber)
 
 
-
     def rowCountChanged(self,change):
-        newCount = self.model.rowCount()
-        #print('change %s, newCount %s'%(change,newCount))
- 
+        newCount = self.model.rowCount() 
         v = self.rowBox.value()+change
         self.rowBox.setMaximum(newCount+1)
-        #if v<self.rowBox.minimum():
-         #   v = self.rowBox.minimum()
-        
-        #if v>self.rowBox.maximum():
-        #    v = self.rowBox.maximum()
-
         self.rowBox.setValue(v)
-
 
 
     #for requested view
@@ -135,7 +124,6 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         
         self.tableView.setContextMenuPolicy(Qt.CustomContextMenu);
         self.tableView.customContextMenuRequested.connect(lambda pt:self.tableMenu.exec_(self.tableView.mapToGlobal(pt)))
-
 
 
     def addDummy(self):
@@ -165,15 +153,39 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
 
 
 
-    def loadSec(self,row=None,clear=False):
-        p=QFileDialog.getOpenFileName(caption='load .rte',filter='*.sec;;*',directory=self.lastFolder())[0]
+    def loadSec(self,clear=False):
+        p = QFileDialog.getOpenFileName(caption='load .rte',filter='*.sec;;*',directory=self.lastFolder())[0]
+        
         if p!='':
             self.setFolder(p)
-
+            
+            row = self.rowBox.value()
+            
             with open(p,'r') as f:
                 self.model.loadSec(f=f,rev=self.rev(),row=row,clear=clear)
                 
             iface.messageBar().pushMessage("manual secbuilder:loaded "+p,duration=4)
+
+
+
+    def loadRte(self):
+        #r = self.loadRteDialog.exec_()
+            
+        #if r==QDialog.Accepted:
+
+        layer = self.getLayer()
+            
+        p = self.loadRteDialog.fileWidget.filePath()
+        if not p:
+            iface.messageBar().pushMessage("manual secbuilder:no file selected",duration=4)
+            return     
+
+        labelField = self.getLabelField()
+        dirField = self.loadRteDialog.directionFieldWidget.currentField()
+
+        with open(p,'r') as f:
+            self.model.loadRTE(f=f,layer=layer,labelField=labelField,directionField=dirField,row=self.rowBox.value(),clear=self.loadRteDialog.clear)
+            #iface.messageBar().pushMessage("manual secbuilder:loaded rte",duration=4)
 
 
 #reversed selected?
@@ -216,7 +228,6 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
             self.model.clear()
 
 
-
     def saveAsSec(self):
         p=QFileDialog.getSaveFileName(self, 'Save File',filter='*.sec;;*',directory=self.lastFolder())[0]
         if p:
@@ -240,8 +251,8 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
 
     #list of features   
     def features(self):
-        layer=self.getLayer()
-        labelField=self.getLabelField()
+        layer = self.getLayer()
+        labelField = self.getLabelField()
         if layer and labelField:
             return[layer_functions.getFeature(layer,labelField,val) for val in self.sectionLabels()]
 
@@ -252,12 +263,21 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
     
 
     def saveAsRte(self):
-        self.rteDialog.show()
-
-
+        layer = self.getLayer()
+        
+        to = self.rteDialog.fileWidget.filePath()
+        if not to:
+            iface.messageBar().pushMessage("manual secbuilder:no file selected",duration=4)
+            return
+            
+        fields = self.rteDialog.fields()
+        fields.update({'label':self.getLabelField()})
+        self.model.saveRte(to=to,layer=layer,fields=fields)
+        iface.messageBar().pushMessage("manual secbuilder:saved to rte:"+to,duration=4)
+        
 
     def saveAsSr(self):
-        p=QFileDialog.getSaveFileName(self, 'Save File',filter='*.sr;;*',directory=self.lastFolder())[0]
+        p = QFileDialog.getSaveFileName(self, 'Save File',filter='*.sr;;*',directory=self.lastFolder())[0]
         if p:
             if self.model.rowCount()==0:
                 iface.messageBar().pushMessage("manual secbuilder:no sections to save:",duration=4)
@@ -302,19 +322,23 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
             layer_functions.selectValues(layer,field,sections)
 
 
-
     def initTopMenu(self):
         topMenu=QMenuBar()       
 
 
         ######################load
-        loadMenu=topMenu.addMenu("Load")
-        loadSecAct=loadMenu.addAction('Load .sec...')
+        loadMenu = topMenu.addMenu("Load")
+        loadSecAct = loadMenu.addAction('Load .sec...')
         loadSecAct.triggered.connect(lambda:self.loadSec(clear=True))
 
         loadRteAct=loadMenu.addAction('Load .rte...')
-        loadRteAct.triggered.connect(lambda:self.loadRteDialog.show(clearMode=True))
+        #loadRteAct.triggered.connect(lambda:self.loadRteDialog.show(clearMode=True))
+        #loadRteAct.triggered.connect(lambda:self.loadRte(clear=True))
+        loadRteAct.triggered.connect(lambda:self.loadRteDialog.setClear(True))
+        loadRteAct.triggered.connect(self.loadRteDialog.show)
 
+        
+        
         loadSrAct=loadMenu.addAction('Load .sr...')
         loadSrAct.triggered.connect(lambda:self.loadSr(clear=True))
 
@@ -325,12 +349,16 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
 
 
         insertSecAct=insertMenu.addAction('Insert .sec...')
-        insertSecAct.triggered.connect(lambda:self.loadSec(row=self.rowBox.value(),clear=False))
+        insertSecAct.triggered.connect(lambda:self.loadSec(clear=False))
         insertSecAct.setToolTip('insert .sec file using selected row and direction')
 
     
-        insertRteAct=insertMenu.addAction('Insert .rte...')
-        insertRteAct.triggered.connect(lambda:self.loadRteDialog.show(clearMode=False))
+        insertRteAct = insertMenu.addAction('Insert .rte...')
+        #insertRteAct.triggered.connect(lambda:self.loadRteDialog.show(clearMode=False))
+        #insertRteAct.triggered.connect(lambda:self.loadRte(clear=False))
+        insertRteAct.triggered.connect(lambda:self.loadRteDialog.setClear(False))
+        insertRteAct.triggered.connect(self.loadRteDialog.show)
+
         insertRteAct.setToolTip('insert .rte file at row')
 
 
@@ -359,7 +387,7 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         saveSecAct.triggered.connect(self.saveAsSec)
 
         saveRteAct=saveMenu.addAction('Save as .rte...')
-        saveRteAct.triggered.connect(self.saveAsRte)
+        saveRteAct.triggered.connect(self.rteDialog.show)
         
         
         #######################help
@@ -383,7 +411,6 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
     def openHelp(self):
         helpPath = os.path.join(os.path.dirname(__file__),'help','overview.html')
         helpPath = 'file:///'+os.path.abspath(helpPath)
-        print(helpPath)
         QtGui.QDesktopServices.openUrl(QUrl(helpPath))
 
         
@@ -442,12 +469,3 @@ def initDragAndDrop(tableView):
 def selectRowFromValue(tableView,column,value):
     rows = [i.index().row() for i in tableView.model().findItems(value,column=column)]
 
-
-    
-#unused
-#list of qstandarditem s from QStandardItemModel. For some crazy reason QStandardItemModel only has takeRow(row)
-def getRow(model,row:int):
-    return [model.data(model.index(row,c)) for c in range(model.columnCount())]
-
-
-           

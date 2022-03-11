@@ -1,42 +1,51 @@
-from . import fields_dialog
+#from . import fields_dialog
 
 from qgis.gui import QgsFileWidget
 from qgis.utils import iface
 
+from PyQt5.QtWidgets import QDialog,QFormLayout,QDialogButtonBox
+from qgis.gui import QgsFileWidget,QgsFieldComboBox,QgsMapLayerComboBox
 
 
-class loadRteDialog(fields_dialog.fieldsDialog):    
+class loadRteDialog(QDialog):    
 
 #parent must have attribute sections
-    def __init__(self,layerBox,parent):
-        fields=['direction']
+    def __init__(self,parent=None):
 
-        super(loadRteDialog,self).__init__(fields=fields,layerBox=layerBox,parent=parent)
+        self.clear = None#true if want to clear existing sections from model
+        super().__init__(parent=parent)
+        
+        self.setLayout(QFormLayout(self))
 
-        self.setTooltips({'direction':'Field of layer with direction. Values need to be one of NB,EB,SB,WB,CW,AC'})
-
-        self.fileWidget=QgsFileWidget(self)        
+        self.fileWidget = QgsFileWidget(self)
+        self.fileWidget.setFilter('*.rte;;*')
         self.layout().insertRow(0,'File',self.fileWidget)
-
-        self.buttonBox.rejected.connect(self.hide)
         
-        self.setWindowTitle('load rte')
-
-        self.clearMode=True# True=insert at row,False=clear and load
-        self.buttonBox.accepted.connect(self.load)
-
-       
-
-    def setclearMode(self,mode):
-        self.clearMode=mode
+        self.directionFieldWidget = fieldWidget(self,'direc_code')
+        self.directionFieldWidget.setToolTip('Field of layer with direction. Values need to be one of NB,EB,SB,WB,CW,AC')
+        self.layout().addRow('Field of layer with direction.',self.directionFieldWidget)
         
-
-
-    def show(self,clearMode):
-        self.clearMode=clearMode
-        super().show()
-
-
+        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok|QDialogButtonBox.Cancel,parent=self)
+        self.buttonBox.rejected.connect(self.reject)
+        self.buttonBox.accepted.connect(self.accept)
+        
+        self.layout().addRow(self.buttonBox)
+        self.setClear(False)
+        
+        
+    def setClear(self,clear):
+    
+        if clear:
+            self.setWindowTitle('load rte')
+        else:
+            self.setWindowTitle('insert rte')
+        
+        self.clear = clear
+        
+        
+    def setLayer(self,layer):
+        self.directionFieldWidget.setLayer(layer)
+        
 
     def load(self):
 
@@ -47,12 +56,6 @@ class loadRteDialog(fields_dialog.fieldsDialog):
             iface.messageBar().pushMessage("manual secbuilder:no file selected",duration=4)
             return     
 
-
-        if not self.fieldsSet():
-            iface.messageBar().pushMessage("manual secbuilder:direction field not set",duration=4)
-            return           
-        directionField=self.getFields()['direction']
-
         
         labelField=self.parent().getLabelField()
         
@@ -60,12 +63,21 @@ class loadRteDialog(fields_dialog.fieldsDialog):
         with open(p,'r') as f:
             self.parent().model.loadRTE(f=f,layer=layer,labelField=labelField,directionField=directionField,row=self.parent().rowBox.value(),clear=self.clearMode)
 
-        self.hide()
 
 
+class fieldWidget(QgsFieldComboBox):
 
-            
-
-
-
+    def __init__(self,parent=None,default=''):
+        super().__init__(parent)
         
+        self.default = default
+        
+        if isinstance(parent,QgsMapLayerComboBox):
+            self.setLayer(parent.currentLayer())
+            parent.layerChanged.connect(self.setLayer)
+
+    def setLayer(self,layer):
+        super().setLayer(layer)
+        
+        if self.default in layer.fields().names():
+            self.setField(self.default)
