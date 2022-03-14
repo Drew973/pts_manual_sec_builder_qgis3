@@ -1,19 +1,26 @@
 #from . import fields_dialog
 
-from qgis.gui import QgsFileWidget
 from qgis.utils import iface
 
 from PyQt5.QtWidgets import QDialog,QFormLayout,QDialogButtonBox
-from qgis.gui import QgsFileWidget,QgsFieldComboBox,QgsMapLayerComboBox
+from qgis.gui import QgsFileWidget
+from . field_widget import fieldWidget
+
 
 
 class loadRteDialog(QDialog):    
 
 #parent must have attribute sections
-    def __init__(self,parent=None):
+    def __init__(self,model,parent=None):
 
-        self.clear = None#true if want to clear existing sections from model
         super().__init__(parent=parent)
+        
+        self.layer = None
+        self.clear = None#true if want to clear existing sections from model
+        self.row = 0# row to insert at. clear if row is None
+        
+        self.labelField = None
+        self.model = model
         
         self.setLayout(QFormLayout(self))
 
@@ -30,54 +37,39 @@ class loadRteDialog(QDialog):
         self.buttonBox.accepted.connect(self.accept)
         
         self.layout().addRow(self.buttonBox)
-        self.setClear(False)
+         
+        self.accepted.connect(self.load)
         
         
-    def setClear(self,clear):
+    #QgsMapLayer
+    def setLayer(self,layer):
+        self.directionFieldWidget.setLayer(layer)
+        
+  
+
+    #set parameters for loading rte. Call before showing.
+    def prepare(self,labelField,row):
+     
+        self.labelField = labelField
+        self.row = row
     
-        if clear:
+        if self.row is None:
             self.setWindowTitle('load rte')
         else:
             self.setWindowTitle('insert rte')
         
-        self.clear = clear
         
-        
-    def setLayer(self,layer):
-        self.directionFieldWidget.setLayer(layer)
-        
+
+#labelField,row,clear
 
     def load(self):
-
-        layer=self.parent().getLayer()
-
-        p=self.fileWidget.filePath()
+            
+        p = self.fileWidget.filePath()
         if not p:
             iface.messageBar().pushMessage("manual secbuilder:no file selected",duration=4)
             return     
 
-        
-        labelField=self.parent().getLabelField()
-        
 
         with open(p,'r') as f:
-            self.parent().model.loadRTE(f=f,layer=layer,labelField=labelField,directionField=directionField,row=self.parent().rowBox.value(),clear=self.clearMode)
-
-
-
-class fieldWidget(QgsFieldComboBox):
-
-    def __init__(self,parent=None,default=''):
-        super().__init__(parent)
-        
-        self.default = default
-        
-        if isinstance(parent,QgsMapLayerComboBox):
-            self.setLayer(parent.currentLayer())
-            parent.layerChanged.connect(self.setLayer)
-
-    def setLayer(self,layer):
-        super().setLayer(layer)
-        
-        if self.default in layer.fields().names():
-            self.setField(self.default)
+            self.model.loadRTE(f=f,layer=self.directionFieldWidget.layer(),labelField=self.labelField,directionField=self.directionFieldWidget.currentField(),row=self.row)
+            #iface.messageBar().pushMessage("manual secbuilder:loaded rte",duration=4)

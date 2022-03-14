@@ -1,15 +1,17 @@
 from PyQt5 import QtGui
 
+
+
+
 from qgis.PyQt.QtCore import Qt,pyqtSignal
 
     #from . import layer_functions
     #from .rte import rte
 
 
-import layer_functions
-from rte import rte
+from . import layer_functions
+from . rte import rte,feature_to_rte_item
 
-from qgis.core import QgsCoordinateTransform,QgsCoordinateReferenceSystem,QgsProject,QgsGeometry
 import os
 
 
@@ -98,11 +100,13 @@ class msbModel(QtGui.QStandardItemModel):
 
 #f is file like object with readlines() method
 #returns number of rows added.
-    def loadRTE(self,f,layer,labelField,directionField,row=None,clear=False):
+#inserts new rows at row. Clears if None.
+    def loadRTE(self,f,layer,labelField,directionField,row=None):
         
-        if clear:
+        if row is None:
             self.clear()
             self.setHorizontalHeaderLabels(self.headerLabels)
+            row = 0
 
         lines = [line for line in f.readlines()]
 
@@ -113,6 +117,7 @@ class msbModel(QtGui.QStandardItemModel):
             sec = line[0:30].strip()#section label.
 
             if sec:
+                #if directionField is None:
                 direction = line[30:32].strip()
                 forwardDirection = str(layer_functions.forward_dir(sec,layer,labelField,directionField))
                 self.addRow(rowNumber=row,label=sec,isReversed = direction!=forwardDirection)
@@ -189,64 +194,11 @@ class msbModel(QtGui.QStandardItemModel):
 
             
 
-    #surveys need to start at start node and finish at end node. 
-    #for roundabouts there will be a dummy between end node of last section and start node of roundabout.
-    #another between end node of roundabout and start node of next section.
-    def addRoundaboutDummys(self,layer,rbtField):
-        for i in range(self.rowCount(),0):#count down to avoid problems with indexes changing.
-            pass
-
-
-    def remove_consecutive(self):
-        lastLabel = None
-        lastDirection = None
-        
-        for i in range(self.rowCount(),0):#count down to avoid problems with indexes changing.
-            label = self.item(r,0).data(Qt.EditRole)
-            direction = self.item(r,1).data(Qt.EditRole)
-            if label==lastLabel and direction==lastDirection:
-                self.takeRow(i)
-    
-            lastLabel = label
-            lastDirection = direction
-
-
-
     def rteItem(self,row:int,layer,fields:dict):
         label = self.index(row,0).data()
-        rev = self.index(row,1).data()
-
+        rev = self.index(row,1).data()        
         f = layer_functions.getFeature(layer=layer,field=fields['label'],value=label)
-        print(fields)
-        v = featureToDict(f,fields)
-       
-        t = QgsCoordinateTransform(layer.crs(),QgsCoordinateReferenceSystem('ESPG27700'),QgsProject.instance())#transform to espg 27700
-        
-
-        geom = QgsGeometry(f.geometry())
-        geom.transform(t)
-       
-       
-        if rev: 
-            s = endPoint(geom)
-            e = startPoint(geom)
-            v.update({'survey_direction':rte.opposite_direction(v['section_direction'])})
-        else:
-            s = startPoint(geom)
-            e = endPoint(geom)
-            v.update({'survey_direction':v['section_direction']})
-
-        v.update({'start_x':s.x(),'start_y':s.y(),'end_x':e.x(),'end_y':e.y()})
-        
-        
-        
-        i = rte.rteItem(**v)
-
-        if rev:
-            i.flip_direction()
-
-        return i
-        
+        return feature_to_rte_item.featureToRteItem(f,fields,layer.crs(),rev)
         
 
 #labels and directions to list of rte_items and dummys.dummys use last item. dummys at start removed.
@@ -288,27 +240,3 @@ def makeItem(data):
     return item
 
 
-#fields is dict of key:fieldName
-#returns dict of key:attribute
-def featureToDict(feature,fields):
-    featureFields = feature.fields().names()
-    r = {}
-    for k in fields:
-        if fields[k] in featureFields:
-            r[k] = feature[fields[k]]
-        else:
-            r[k] = None
-    return r
-    
-    
-    
-    
-def startPoint(geom):
-    p = geom.interpolate(0)
-    return p.asPoint()
-      
-      
-      
-def endPoint(geom):
-    p = geom.interpolate(geom.length())
-    return p.asPoint()    

@@ -1,21 +1,25 @@
+
+
 import sys
-import imp
+#import imp
+import importlib
+
 
 p = r'C:\Users\drew.bennett\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\manual_sec_builder'
 
 if __name__=='__console__':
-    if not p in sys.path:
-        sys.path.append(p)
+    #if not p in sys.path:
+       # sys.path.append(p)
         
     from qgis.core import QgsProject
+    import manual_sec_builder
 
-    import msbModel
-    imp.reload(msbModel)
+    #imp.reload(manual_sec_builder)
+    importlib.reload(manual_sec_builder)
+    #from rte import rte
+   # imp.reload(rte)
     
-    from rte import rte
-    imp.reload(rte)
-    
-    m = msbModel.msbModel()
+    m = manual_sec_builder.msbModel.msbModel()
     
     layer = QgsProject.instance().mapLayersByName('network_with_nodes')[0]
     #fields = {'label': 'sect_label', 'direction': 'direc_code', 'length': 'sec_length', 'startNode': 'start_node', 'endNode': 'end_node', 'startDate': 'start_date', 'endDate': 'sect_label', 'function': 'funct_name'}

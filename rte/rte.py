@@ -1,7 +1,7 @@
 '''
 functions for writing rte
 '''
-from PyQt5.QtCore import QDate
+
 
 #“An” indicates a text field of n characters, left justified and padded with spaces;
 def A(value,n):
@@ -86,7 +86,6 @@ def R1_1(route_identifier,n_lanes,file_format_version='V1'):
 
 def R2_1(section_label,direction,lane_name,start_chainage,end_chainage,start_reference_label,start_x=None,start_y=None):
     check_direction(direction)
-    #return '{:<30}{:<2}{:<20}{:>11.3f}{:>11.3f}{:<20}{:>10}{:>10}\n'.format(section_label,direction,lane_name,start_chainage,end_chainage,str(start_reference_label),to_format(start_x,'{:>11.3f}'),to_format(start_y,'{:>11.3f}'))
     return A(section_label,30)+A(direction,2)+A(lane_name,20)+F(start_chainage,11,3)+F(end_chainage,11,3)+A(start_reference_label,20)+F(start_x,11,3)+F(start_y,11,3)+'\n'
 
 
@@ -119,106 +118,9 @@ def to_format(val,form):
 
 
 
-#one of these for each section in rte
-
-#direction in ['N','E','S','W','CW','AC']
-#start_node,end_node,direction can be used to get if in reverse direction
-
-#'label', 'direction', 'length', 'startNode', 'endNode', 'startDate', 'endDate', 'function'
-
-class rteItem:
-    def __init__(self,label,survey_direction,section_direction,length,start_node,end_node,start_date,end_date,function,lane_name='Lane 1',start_chainage=0,end_chainage=None,start_x=None,start_y=None,end_x=None,end_y=None):
-        #cast to correct types here?
-        self.section_label = label
-        self.survey_direction = survey_direction
-        self.section_direction = section_direction
-        self.lane_name = lane_name
-        
-        self.start_chainage = start_chainage
-        
-        if end_chainage is None:
-            self.end_chainage = length
-        else:
-            self.end_chainage = end_chainage
-
-        self.section_len = length
-        self.start_node = start_node
-  
-        self.end_node = end_node
-            
-        self.start_x = start_x
-        
-        self.start_y = start_y
-        
-        self.end_x = end_x
-        
-        self.end_y = end_y
-        
-        
-        if isinstance(start_date,QDate):
-            self.start_date = start_date.toString('dd-MMM-yyyy')
-        else:
-            self.start_date = start_date
-        
-        
-        if isinstance(end_date,QDate):
-            self.end_date = end_date.toString('dd-MMM-yyyy')
-        else:
-            self.end_date = end_date
-            
-        self.function = function
-        
-
-    def R2_1(self):
-        return R2_1(self.section_label,self.survey_direction,self.lane_name,self.start_chainage,self.end_chainage,self.start_node,self.start_x,self.start_y)
-
-
-
-    def R3_1(self):
-        return R3_1(self.end_node,self.end_x,self.end_y)
-
-
-    def R4_1(self):
-        return R4_1(self.section_label,self.start_date,self.end_date,self.section_len,self.section_direction,self.function)
-
-
-    def flip_direction(self):
-        self.start_node,self.end_node = self.end_node,self.start_node #swap values
-        self.start_x,self.end_x = self.end_x,self.start_x
-        self.start_y,self.end_y = self.end_y,self.start_y
-
-        self.direction = opposite_direction(self.direction)
-        #self.start_chainage,self.end_chainage = self.end_chainage,self.start_chainage     #start and end chainage were not swapped in previous. Mistake?
-
-
-    def is_dummy(self):
-        return False
-
-
-#make dummy using start_node,start_x,start_y of this item
-#start node of dummy = end node of last. 
-    def make_dummy(self):
-        return dummy(start_node=self.end_node,start_x=self.end_x,start_y=self.end_y)
-
-
-#behaves like rte_item. Not actually subclass because don't want some methods.
-    
-class dummy:
-
-    def __init__(self,start_node,start_x=None,start_y=None):
-        self.start_node = start_node
-        self.start_x = start_x
-        self.start_y = start_y
-
-    def R2_1(self):
-        return R2_1(None,None,None,0,0,self.start_node,self.start_x,self.start_y)
-
-    def is_dummy(self):
-        return True
-
 
 #to=something with .write method.
-
+#rte_items = iterable of ite Items or dummys
        
 def write_rte(rte_items,to,route_identifier):
 
@@ -255,3 +157,7 @@ def write_rte(rte_items,to,route_identifier):
 #to return strings.
 # empty where value is None.
 #raise error if value should be but can't be converted to int/float
+
+
+
+
