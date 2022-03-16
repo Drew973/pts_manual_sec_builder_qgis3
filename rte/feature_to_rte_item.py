@@ -27,10 +27,7 @@ def featureToRteItem(feature,fields,crs,rev=False):
     
     v.update({'start_x':s.x(),'start_y':s.y(),'end_x':e.x(),'end_y':e.y()})
 
-    v.update({'survey_direction':v['section_direction']})
-
-    v.update({'start_x':s.x(),'start_y':s.y(),'end_x':e.x(),'end_y':e.y()})
-        
+    v.update({'survey_direction':v['section_direction']})        
         
     i = rte_item.rteItem(**v)
 

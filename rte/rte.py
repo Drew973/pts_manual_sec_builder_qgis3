@@ -53,9 +53,8 @@ def check_direction(direction):
     if direction is None:
         return True
         
-    directions = ['NB','EB','SB','WB','CW','AC']
-    if not direction in directions:
-        raise ValueError('direction not in'+','.join(directions))
+    if not direction in OPPOSITES:
+        raise ValueError('direction not in'+','.join(OPPOSITES.keys()))
 
 
 
@@ -117,8 +116,6 @@ def to_format(val,form):
         return ' '
 
 
-
-
 #to=something with .write method.
 #rte_items = iterable of ite Items or dummys
        
@@ -147,17 +144,5 @@ def write_rte(rte_items,to,route_identifier):
     for i in sorted(rte_items, key=lambda x: x.section_label):
         if not i.is_dummy():
             to.write(i.R4_1())
-
-
-
-#converts value val into format string form
-
-#see rte spec
-
-#to return strings.
-# empty where value is None.
-#raise error if value should be but can't be converted to int/float
-
-
 
 

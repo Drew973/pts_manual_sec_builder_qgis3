@@ -92,6 +92,7 @@ class dummy:
         self.start_node = start_node
         self.start_x = start_x
         self.start_y = start_y
+        self.section_label = 'D'
 
     def R2_1(self):
         return R2_1(None,None,None,0,0,self.start_node,self.start_x,self.start_y)
