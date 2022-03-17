@@ -6,11 +6,11 @@ ROUTEV1      test.rte                                              7
 0600M62/427                   EBLane 1                    0.000    220.00050116                348767.652 389574.600
 0600M62/430                   EBLane 1                    0.000    249.00071501                348985.798 389559.449
 0600M62/435                   EBLane 1                    0.000   1354.00071526                349225.805 389560.159
-                     350531.000 389891.246
-0600M62/416                   01-Jan-3000              1323.000EBMain Carriageway
-0600M62/420                   01-Jan-3000               477.000EBMain Carriageway
-0600M62/422                   01-Jan-3000               231.000EBMain Carriageway
-0600M62/425                   01-Jan-3000               780.000EBMain Carriageway
-0600M62/427                   01-Jan-3000               220.000EBMain Carriageway
-0600M62/430                   01-Jan-3000               249.000EBMain Carriageway
-0600M62/435                   01-Jan-3000              1354.000EBMain Carriageway
+71661                350531.000 389891.246
+0600M62/416                   01-Jan-200901-Jan-3000   1323.000EBMain
+0600M62/420                   18-Nov-200801-Jan-3000    477.000EBMain
+0600M62/422                   18-Nov-200801-Jan-3000    231.000EBMain
+0600M62/425                   23-Jan-199001-Jan-3000    780.000EBMain
+0600M62/427                   23-Jan-199001-Jan-3000    220.000EBMain
+0600M62/430                   23-Jan-199001-Jan-3000    249.000EBMain
+0600M62/435                   23-Jan-199001-Jan-3000   1354.000EBMain

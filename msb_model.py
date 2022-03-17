@@ -78,9 +78,11 @@ class msbModel(QtGui.QStandardItemModel):
         self.countChanged.emit(-rc)
 
 
-    def loadSec(self,f,rev,row=0,clear=False):
-        if clear:
+    def loadSec(self,f,rev,row=0):
+        if row is None:
             self.clear()
+            self.setHorizontalHeaderLabels(self.headerLabels)
+            row = 0
 
         for line in f.readlines():
 
@@ -125,18 +127,22 @@ class msbModel(QtGui.QStandardItemModel):
             else:
                 self.addDummy(row)
 
-            if row:
-                row+=1
+            row+=1
 
 
 
     def loadSr(self,f,row=None):
+        
+        if row is None:
+            self.clear()
+            self.setHorizontalHeaderLabels(self.headerLabels)
+            row = 0        
+        
         for line in f.readlines():
-            r=line.strip().split(',')
+            r = line.strip().split(',')
             if r[0]!='section':#not header
                 self.addRow(rowNumber=row,label=r[0],isReversed=self.revToBool(r[1]))
-                if row:
-                    row+=1        
+                row+=1        
         
 
 
@@ -222,11 +228,43 @@ class msbModel(QtGui.QStandardItemModel):
         return items
             
             
-    def saveRte(self,to,layer,fields):        
-        with open(to,'w') as f:
-            if self.rowCount()>0:
-                rte.write_rte(self.rteItems(layer,fields),f,os.path.basename(to))
+    def saveRte(self,f,layer,fields):        
+        if self.rowCount()>0:
+            rte.write_rte(self.rteItems(layer,fields),f,os.path.basename(f.name))
             
+            
+    #file is open file like with writeLines() and .name attribute
+    #layer and fields only required for rte
+    def save(self,f,layer=None,fields=None):
+        
+        ext = os.path.splitext(f.name)[-1]
+
+        if ext == 'sec':
+            self.saveSec(f,self)
+
+        if ext == 'sr':
+            self.saveSr(f)
+            
+        if ext =='rte':            
+            self.saveRte(f,layer,fields)
+
+
+    #file is open file like with writeLines() and .name attribute
+    #layer and fields only required for rte
+    #rev only required for sec
+    def load(self,f,row=0,layer=None,fields=None,rev=None):
+        
+        ext = os.path.splitext(f.name)[-1]
+
+        if ext == 'sec':
+            self.loadSec(f,rev,row)
+
+        if ext == 'sr':
+            self.loadSr(f,row)
+            
+        if ext =='rte':            
+            self.loadRte(f,layer,fields['label'],fields['direction'],row)
+
             
 def isDummy(secLine):
     return secLine.strip()=='D'

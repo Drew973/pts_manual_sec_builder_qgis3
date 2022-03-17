@@ -9,7 +9,7 @@ def A(value,n):
         return ' '*n #n spaces
     else:
         s = '{:<%d}'%(n)#eg '{:<20}'
-        return s.format(str(value))
+        return s.format(str(value))[:n]
     
     
     
@@ -26,7 +26,7 @@ def I(value,n,sign=False):
         else:
             s = '{:>%d}'%(n)#eg '{:>+20}'
         
-        return s.format(value)
+        return s.format(value)[:n]
 
     raise TypeError('value %s is not integer or None'%(str(value)))
 
@@ -45,7 +45,7 @@ def F(value,n,d,sign=False):
         else:
             s = '{value:>%d.%df}'%(n,d)
         
-        return s.format(value=float(value))
+        return s.format(value=float(value))[:n]
      
      
 

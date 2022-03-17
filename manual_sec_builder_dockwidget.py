@@ -16,7 +16,7 @@ from . import layer_functions
 from . makeRteDialog import makeRteDialog
 from . loadRteDialog import loadRteDialog
 
-from .msbModel import msbModel
+from .msb_model import msbModel
 
 
 def fixHeaders(path):
@@ -164,10 +164,13 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         if p:
             self.setFolder(p)
             
-            row = self.rowBox.value()
+            if clear:
+                row = None
+            else:
+                row = self.rowBox.value()
             
             with open(p,'r') as f:
-                self.model.loadSec(f = f,rev = self.rev(),row = row,clear = clear)
+                self.model.loadSec(f = f,rev = self.rev(),row = row)
                 
             iface.messageBar().pushMessage("manual secbuilder:loaded "+p,duration = 4)
 

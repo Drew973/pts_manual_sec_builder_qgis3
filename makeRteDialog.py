@@ -28,10 +28,10 @@ class makeRteDialog(QDialog):
    #     self.addField('label',makeFieldWidget(self,filters=QgsFieldProxyModel.String,default='sect_label'),'Section label')#have this in main widget
         self.addField('section_direction',makeFieldWidget(self,filters=QgsFieldProxyModel.String,default='direc_code'),'Direction')
         self.addField('length',makeFieldWidget(self,filters=QgsFieldProxyModel.Numeric,default='sec_length'),'Length')
-        self.addField('start_node',makeFieldWidget(self,default='start_node',allowEmpty=True),'Start node')
-        self.addField('end_node',makeFieldWidget(self,default='end_node',allowEmpty=True),'End node')
+        self.addField('start_node',makeFieldWidget(self,default='start_lrp_',allowEmpty=True),'Start node')
+        self.addField('end_node',makeFieldWidget(self,default='end_lrp_co',allowEmpty=True),'End node')
         self.addField('start_date',makeFieldWidget(self,QgsFieldProxyModel.Date|QgsFieldProxyModel.String|QgsFieldProxyModel.DateTime,True,'start_date'),'Start date')
-        self.addField('end_date',makeFieldWidget(self,QgsFieldProxyModel.Date|QgsFieldProxyModel.String|QgsFieldProxyModel.DateTime,True,'end_date'),'End date')
+        self.addField('end_date',makeFieldWidget(self,QgsFieldProxyModel.Date|QgsFieldProxyModel.String|QgsFieldProxyModel.DateTime,True,'s_end_date'),'End date')
         self.addField('function',makeFieldWidget(self,QgsFieldProxyModel.String,True,'funct_name'),'Function')
 
         #self.setTooltips({'direction':'Field with direction. Values need to be one of NB,EB,SB,WB,CW,AC'})
@@ -79,6 +79,7 @@ class makeRteDialog(QDialog):
         layer = self.parent().getLayer()
         
         if not layer is None:
-            self.parent().model.saveRte(to = to,layer = layer,fields = fields)
-            iface.messageBar().pushMessage("manual secbuilder:saved to rte:"+to,duration = 4)
+            with open(self.fileWidget.filePath(),'w') as f:
+                self.parent().model.saveRte(f,layer = layer,fields = fields)
+                iface.messageBar().pushMessage("manual secbuilder:saved to rte:"+to,duration = 4)
 
