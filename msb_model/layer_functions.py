@@ -52,11 +52,20 @@ def zoomToSelected(layer):
 
 
 
+#get features where feature[field] in vals.
+#no particular order
+def getFeatures(layer,field,vals):
+    e = "%s IN (%s)" %(doubleQuote(field),','.join([singleQuote(val) for val in vals]))#expression looks like "Column_Name" IN ('Value_1', 'Value_2', 'Value_N')
+    #Field names in double quotes, string in single quotes
+    return layer.getFeatures(e)
+    
+
+
 #return features of layer where field=val
-def getFeatures(layer,field,val):
-    e='%s=%s '%(double_quote(field),single_quote(val))
-    request = QgsFeatureRequest().setFilterExpression(e)
-    return layer.getFeatures(request)
+#def getFeatures(layer,field,val):
+  #  e='%s=%s '%(double_quote(field),single_quote(val))
+ #   request = QgsFeatureRequest().setFilterExpression(e)
+ #   return layer.getFeatures(request)
 
 
 

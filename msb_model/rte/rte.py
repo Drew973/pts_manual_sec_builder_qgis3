@@ -71,7 +71,7 @@ def opposite_direction(direction):
 #new sec
 #n_lanes=number of survey lanes. was number of items-1 in previous. why -1?      
 def R1_1(route_identifier,n_lanes,file_format_version='V1'):
-    return A('ROUTE',5)+A(file_format_version,8)+A(route_identifier,50)+I(n_lanes,5)+'\n'
+    return A('ROUTE',5)+A(file_format_version,8)+A(route_identifier,50)+I(n_lanes,5)
 
 
 
@@ -85,19 +85,19 @@ def R1_1(route_identifier,n_lanes,file_format_version='V1'):
 
 def R2_1(section_label,direction,lane_name,start_chainage,end_chainage,start_reference_label,start_x=None,start_y=None):
     check_direction(direction)
-    return A(section_label,30)+A(direction,2)+A(lane_name,20)+F(start_chainage,11,3)+F(end_chainage,11,3)+A(start_reference_label,20)+F(start_x,11,3)+F(start_y,11,3)+'\n'
+    return '\n'+A(section_label,30)+A(direction,2)+A(lane_name,20)+F(start_chainage,11,3)+F(end_chainage,11,3)+A(start_reference_label,20)+F(start_x,11,3)+F(start_y,11,3)
 
 
 #start_x and start_y are optional.
 def dummy_R2_1(start_reference_label,start_x=None,start_y=None):
-    return A(None,30)+A(None,2)+A(None,20)+F(None,11,3)+F(None,11,3)+A(start_reference_label,20)+F(start_x,11,3)+F(start_y,11,3)+'\n'
+    return '\n'+A(None,30)+A(None,2)+A(None,20)+F(None,11,3)+F(None,11,3)+A(start_reference_label,20)+F(start_x,11,3)+F(start_y,11,3)
 
 
 
 #end of route record. 1 of these.
 #end_ref=end node,x,y (crs=27700) if known        
 def R3_1(end_ref,end_x,end_y):
-    return A(end_ref,20)+F(end_x,11,3)+F(end_y,11,3)+'\n'
+    return '\n'+A(end_ref,20)+F(end_x,11,3)+F(end_y,11,3)
 
 
 # 1 per non dummy section in r2.1, sorted alphabetically by section label
@@ -105,15 +105,15 @@ def R3_1(end_ref,end_x,end_y):
 def R4_1(section_label,start_date,end_date,section_len,direction,function):
     check_direction(direction)
    # return'{:<30}{:<11}{:<11}{:>11.3f}{:<2}{:<4}\n'.format(section_label,start_date,end_date,section_len,direction,function)
-    return A(section_label,30)+A(start_date,11)+A(end_date,11)+F(section_len,11,3)+A(direction,2)+A(function,4)+'\n'
+    return '\n'+A(section_label,30)+A(start_date,11)+A(end_date,11)+F(section_len,11,3)+A(direction,2)+A(function,4)
 
 
 #returns space if value is None
-def to_format(val,form):
-    if val:
-        return form.format(val)
-    else:
-        return ' '
+#def to_format(val,form):
+ #   if val:
+ #       return form.format(val)
+  #  else:
+   #     return ' '
 
 
 #to=something with .write method.

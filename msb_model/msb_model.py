@@ -1,18 +1,15 @@
 from PyQt5 import QtGui
 
 
-
-
 from qgis.PyQt.QtCore import Qt,pyqtSignal
 
-    #from . import layer_functions
-    #from .rte import rte
-
-
 from . import layer_functions
-from . rte import rte,feature_to_rte_item
+from . rte import rte,feature_to_rte_item,read
 
 import os
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 
@@ -103,32 +100,55 @@ class msbModel(QtGui.QStandardItemModel):
 #f is file like object with readlines() method
 #returns number of rows added.
 #inserts new rows at row. Clears if None.
-    def loadRTE(self,f,layer,labelField,directionField,row=None):
-        
+    def loadRte(self,f,row=None):
+        logger.debug('loadRte(%s)',f)
+
         if row is None:
             self.clear()
-            self.setHorizontalHeaderLabels(self.headerLabels)
+            #self.setHorizontalHeaderLabels(self.headerLabels)
             row = 0
 
-        lines = [line for line in f.readlines()]
 
-        n = int(lines[0][63:69])#number of lanes is 1st line of file 63:69
-        R2_1s = lines[1:n+1]#2.1 type records
+        R2_1s = []
+        sectionDirections = {}
+
+#R2.1 has forward section direction.
+#R4.1 has section direction
+
+
+#R1.1,R2.1s,R3.1,R4.1s. no R3.1 for dummy.
+
+
+        for line in f.readlines():
+            
+            r = read.readR2_1(line)
+            if isinstance(r,dict):#valid R2_1 line
+                R2_1s.append(r)
+            
+            
+            r = read.readR4_1(line)
+            if isinstance(r,dict):#valid R4_1 line
+                sectionDirections[r['section_label']] = r['section_direction']
                 
-        for line in R2_1s:
-            sec = line[0:30].strip()#section label.
+                
+                
+        logger.debug('sectionDirections:%s',sectionDirections)
 
+
+        for r in R2_1s:#these are in order or route
+            sec = r['section_label']
+            
             if sec:
-                #if directionField is None:
-                direction = line[30:32].strip()
-                forwardDirection = str(layer_functions.forward_dir(sec,layer,labelField,directionField))
-                self.addRow(rowNumber=row,label=sec,isReversed = direction!=forwardDirection)
-                
+                sectionDirection = sectionDirections[sec]
+                self.addRow(rowNumber=row,label=r['section_label'],isReversed = sectionDirection!=r['direction'])
+        
             else:
                 self.addDummy(row)
-
-            row+=1
-
+        
+            row +=1
+                
+        #4.1s are sorted alphabetically
+        #2.1s are in order of route
 
 
     def loadSr(self,f,row=None):
@@ -198,37 +218,47 @@ class msbModel(QtGui.QStandardItemModel):
         if b==False:
             return 'No'
 
-            
-
-    def rteItem(self,row:int,layer,fields:dict):
-        label = self.index(row,0).data()
-        rev = self.index(row,1).data()        
-        f = layer_functions.getFeature(layer=layer,field=fields['label'],value=label)
-        return feature_to_rte_item.featureToRteItem(f,fields,layer.crs(),rev)
-        
 
 #labels and directions to list of rte_items and dummys.dummys use last item. dummys at start removed.
    #list of rte items.
+   #layer.getFeatures() slow and has to set up new conection every time.
+   #quicker to call once to get all features
+   
+   
+   
     def rteItems(self,layer,fields):
+        logger.debug('rteItems(%s,%s)',layer,fields)
+        labelField = fields['label']
         
+        #label:feature
+        features = {f[labelField]:f for f in layer_functions.getFeatures(layer,labelField,self.sectionLabels())}
+                
         items = []
         lastValid = None
             
         for i in range(0,self.rowCount()):
             label = self.index(i,0).data()
+            rev = self.index(i,1).data()
             
             if label=='D':
                 if lastValid:
                    items.append(lastValid.make_dummy())
             else:
-                item = self.rteItem(i,layer,fields)
-                items.append(item)
-                lastValid = item
+                if label in features:                   
+                    item = feature_to_rte_item.featureToRteItem(features[label],fields,layer.crs(),rev)
+                    items.append(item)
+                    lastValid = item
+                else:
+                    raise KeyError('layer has no feature with {field} = {lab} '.format(field=labelField,lab=label))
                     
+                 
         return items
             
             
-    def saveRte(self,f,layer,fields):        
+    def saveRte(self,f,layer,fields):      
+        if layer is None:
+            raise ValueError('need layer to load rte')
+            
         if self.rowCount()>0:
             rte.write_rte(self.rteItems(layer,fields),f,os.path.basename(f.name))
             
@@ -238,14 +268,14 @@ class msbModel(QtGui.QStandardItemModel):
     def save(self,f,layer=None,fields=None):
         
         ext = os.path.splitext(f.name)[-1]
+                
+        if ext == '.sec':
+            self.saveSec(f)
 
-        if ext == 'sec':
-            self.saveSec(f,self)
-
-        if ext == 'sr':
+        if ext == '.sr':
             self.saveSr(f)
             
-        if ext =='rte':            
+        if ext =='.rte':            
             self.saveRte(f,layer,fields)
 
 
@@ -256,14 +286,14 @@ class msbModel(QtGui.QStandardItemModel):
         
         ext = os.path.splitext(f.name)[-1]
 
-        if ext == 'sec':
+        if ext == '.sec':
             self.loadSec(f,rev,row)
 
-        if ext == 'sr':
+        if ext == '.sr':
             self.loadSr(f,row)
             
-        if ext =='rte':            
-            self.loadRte(f,layer,fields['label'],fields['direction'],row)
+        if ext =='.rte':                
+            self.loadRte(f,row)
 
             
 def isDummy(secLine):

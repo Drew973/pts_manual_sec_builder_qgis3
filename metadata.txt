@@ -10,7 +10,7 @@
 name=manual_sec_builder
 qgisMinimumVersion=3.0
 description=tool for manipulating .sec and .rte files
-version=3.15
+version=3.16
 author=drew
 email=drew.bennett@ptsinternational.co.uk
 
@@ -23,7 +23,7 @@ repository=http://repo
 # Recommended items:
 
 # Uncomment the following line and add your changelog:
-# changelog=
+ changelog=Fixed bug when writing rte file.
 
 # Tags are comma separated with spaces allowed
 tags=python

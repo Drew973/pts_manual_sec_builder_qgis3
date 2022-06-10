@@ -9,14 +9,18 @@ from . import rte_item
 
 from qgis.core import QgsCoordinateTransform,QgsCoordinateReferenceSystem,QgsProject,QgsGeometry
 
+import logging
+logger = logging.getLogger(__name__)
 
 
 #fields:dict of key:field with key per field of rte item
 #crs:QgsCoordinateReferenceSystem. get with layer.crs()
 def featureToRteItem(feature,fields,crs,rev=False):
-
+    
     v = featureToDict(feature,fields)
-       
+    
+    logger.debug('featureToRteItem()%s,%s,%s,%s',v,fields,crs,rev)
+    
     t = QgsCoordinateTransform(crs,QgsCoordinateReferenceSystem('ESPG27700'),QgsProject.instance())#transform to espg 27700
         
     geom = QgsGeometry(feature.geometry())
@@ -51,13 +55,23 @@ def featureToDict(feature,fields):
     return r
     
 
-    
 def startPoint(geom):
-    p = geom.interpolate(0)
-    return p.asPoint()
-      
+    logger.debug('startPoint(%s)',geom.asWkt())
+    
+    for v in geom.vertices():
+        return v
+ 
       
       
 def endPoint(geom):
-    p = geom.interpolate(geom.length())
-    return p.asPoint()    
+    logger.debug('endPoint(%s)',geom.asWkt())
+  
+    # p = geom.interpolate(geom.length())#Null for MultilineString with multiple parts
+    #if not p.isNull():
+     #   return p.asPoint() 
+    
+    for v in geom.vertices():
+        pass
+    
+    return v
+    

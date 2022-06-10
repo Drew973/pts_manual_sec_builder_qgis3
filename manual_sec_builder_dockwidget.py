@@ -5,18 +5,25 @@ from PyQt5 import QtGui
 
 from PyQt5.Qt import QItemSelectionModel
                       
-from  qgis.PyQt import uic
+from qgis.PyQt import uic
 from qgis.PyQt.QtCore import pyqtSignal,QSettings,Qt,QUrl
 from qgis.utils import iface
 from qgis.core import QgsFieldProxyModel
 from qgis.PyQt.QtWidgets import QDockWidget,QFileDialog,QMessageBox,QMenuBar,QMenu
 from qgis.PyQt.QtGui import QKeySequence
 
-from . import layer_functions
-from . makeRteDialog import makeRteDialog
-from . loadRteDialog import loadRteDialog
+from manual_sec_builder.makeRteDialog import makeRteDialog
+#from . loadRteDialog import loadRteDialog
 
-from .msb_model import msbModel
+from manual_sec_builder.msb_model import msb_model,layer_functions
+
+import logging
+
+logFile = os.path.join(os.path.dirname(__file__),'log.txt')
+logging.basicConfig(filename=logFile,filemode='w',encoding='utf-8', level=logging.DEBUG, force=True)
+logger = logging.getLogger(__name__)
+
+
 
 
 def fixHeaders(path):
@@ -44,12 +51,12 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         super(manual_sec_builderDockWidget, self).__init__(parent)
         self.setupUi(self)
         
-        self.model = msbModel(self)
+        self.model = msb_model.msbModel(self)
         
         self.rteDialog = makeRteDialog(parent = self,model = self.model)#persistant.
 
-        self.loadRteDialog = loadRteDialog(model = self.model,parent = self)
-        self.loadRteDialog.accepted.connect(self.loadRte)
+       # self.loadRteDialog = loadRteDialog(model = self.model,parent = self)
+        #self.loadRteDialog.accepted.connect(self.loadRte)
         
         self.sectionBox.setFilters(QgsFieldProxyModel.String)
         self.sectionBox.activated.connect(self.labelFieldSet)
@@ -79,7 +86,7 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         self.sectionBox.setCurrentIndex(self.sectionBox.findText(sf))
        # sd = QSettings('pts', 'msb').value('directionField','',str)
         self.rteDialog.setLayer(layer)
-        self.loadRteDialog.setLayer(layer)
+        #self.loadRteDialog.setLayer(layer)
 
 
     #saves settings for layer when user activates box.
@@ -176,14 +183,28 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
 
 
     def loadRte(self):
-        self.loadRteDialog.prepare(self.getLabelField(),row = None)
-        self.loadRteDialog.show()
-        
-        
-    def insertRte(self):
-        self.loadRteDialog.prepare(self.getLabelField(),self.rowBox.value())
-        self.loadRteDialog.show()       
 
+        p = QFileDialog.getOpenFileName(caption = 'load .rte',filter = '*.rte;;*')[0]
+        
+        if p:
+            self.setFolder(p)
+            
+            with open(p,'r') as f:
+                self.model.loadRte(f = f,row = None)
+                iface.messageBar().pushMessage("manual secbuilder:loaded "+p,duration = 4)  
+                
+                
+    def insertRte(self):
+                
+        p = QFileDialog.getOpenFileName(caption = 'load .rte',filter = '*.rte;;*')[0]
+        
+        if p:
+            self.setFolder(p)
+            
+            with open(p,'r') as f:
+                self.model.loadRte(f = f,row = self.rowBox.value())
+                iface.messageBar().pushMessage("manual secbuilder:inserted "+p,duration = 4)                    
+        
 
 
 #reversed selected?
@@ -250,22 +271,6 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
             return[layer_functions.getFeature(layer,labelField,val) for val in self.model.sectionLabels()]
 
 
-
-   # def saveAsRte(self):
-        
-     #   to = self.rteDialog.fileWidget.filePath()
-    #    layer = self.getLayer()
-
-     #   if not to:
-     #       iface.messageBar().pushMessage("manual secbuilder:no file selected",duration = 4)
-     #       return
-            
-  #      fields = self.rteDialog.fields()
-    #    fields.update({'label':self.getLabelField()})
-
-  #      self.model.saveRte(to = to,layer = layer,fields = fields)
-  #      iface.messageBar().pushMessage("manual secbuilder:saved to rte:"+to,duration = 4)
-        
 
 
     def saveAsSr(self):

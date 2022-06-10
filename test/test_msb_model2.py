@@ -19,7 +19,7 @@ if __name__=='__console__':
     #from rte import rte
    # imp.reload(rte)
     
-    m = manual_sec_builder.msbModel.msbModel()
+    m = manual_sec_builder.msb_model.msb_model.msbModel()
     
     layer = QgsProject.instance().mapLayersByName('network_with_nodes')[0]
     #fields = {'label': 'sect_label', 'direction': 'direc_code', 'length': 'sec_length', 'startNode': 'start_node', 'endNode': 'end_node', 'startDate': 'start_date', 'endDate': 'sect_label', 'function': 'funct_name'}
@@ -38,5 +38,6 @@ if __name__=='__console__':
         m.loadSec(f,rev=False)
     
     to = r'C:\Users\drew.bennett\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\manual_sec_builder\test\test.rte'
-    m.saveRte(to,layer,fields)
+    with open(to,'w') as f:
+        m.saveRte(f,layer,fields)
     print('ok')
