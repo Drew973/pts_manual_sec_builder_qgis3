@@ -121,8 +121,7 @@ def R4_1(section_label,start_date,end_date,section_len,direction,function):
        
 def write_rte(rte_items,to,route_identifier):
 
-    n_lanes = len([i for i in rte_items if not i.is_dummy()])
-    to.write(R1_1(route_identifier=route_identifier,n_lanes=n_lanes))
+    to.write(R1_1(route_identifier=route_identifier,n_lanes=len(rte_items)))#count should include dummys
 
     last_non_dummy = None
     
