@@ -12,10 +12,12 @@ from qgis.core import QgsFieldProxyModel
 from qgis.PyQt.QtWidgets import QDockWidget,QFileDialog,QMessageBox,QMenuBar,QMenu
 from qgis.PyQt.QtGui import QKeySequence
 
-from manual_sec_builder.makeRteDialog import makeRteDialog
+from manual_sec_builder.widgets.makeRteDialog import makeRteDialog
 from manual_sec_builder.msb_model import msb_model,layer_functions
 
 import logging
+from qgis.core import QgsMapLayerProxyModel
+
 
 logFile = os.path.join(os.path.dirname(__file__),'log.txt')
 logging.basicConfig(filename=logFile,filemode='w',encoding='utf-8', level=logging.DEBUG)
@@ -51,15 +53,13 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         
         self.model = msb_model.msbModel(self)
         
-        self.rteDialog = makeRteDialog(parent = self,model = self.model)#persistant.
-
-       # self.loadRteDialog = loadRteDialog(model = self.model,parent = self)
-        #self.loadRteDialog.accepted.connect(self.loadRte)
+        self.rteDialog = makeRteDialog(parent = self,model = self.model,layerBox=self.layerBox)#persistant.
         
         self.sectionBox.setFilters(QgsFieldProxyModel.String)
         self.sectionBox.activated.connect(self.labelFieldSet)
         
-        self.layerBox.activated.connect(self.layerSet)
+        self.layerBox.setFilters(QgsMapLayerProxyModel.LineLayer)
+        self.layerBox.setAllowEmptyLayer(True)
         self.layerBox.layerChanged.connect(self.layerChange)
         
         layer = QSettings('pts', 'msb').value('layer','',str)
@@ -82,16 +82,7 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         self.sectionBox.setLayer(layer)
         sf = QSettings('pts', 'msb').value('sectionField','',str)
         self.sectionBox.setCurrentIndex(self.sectionBox.findText(sf))
-       # sd = QSettings('pts', 'msb').value('directionField','',str)
-        self.rteDialog.setLayer(layer)
-        #self.loadRteDialog.setLayer(layer)
 
-
-    #saves settings for layer when user activates box.
-    def layerSet(self):
-        layer = self.layerBox.currentLayer().name()
-        QSettings('pts', 'msb').setValue('layer',layer)
-    
     
     #saves setting for label field when user activates box.
     #i:int
@@ -100,10 +91,6 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         if sf:
             QSettings('pts', 'msb').setValue('sectionField',sf)
 
-
-    def labelFieldChange(self,field):
-        self.loadRteDialog.setLabelField(field)
-        
         
     #row = row number
     def addRow(self,label,isReversed = None,rowNumber = None):
@@ -327,8 +314,6 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         loadSecAct.triggered.connect(lambda:self.loadSec(clear = True))
 
         loadRteAct = loadMenu.addAction('Load .rte...')
-        #loadRteAct.triggered.connect(lambda:self.loadRteDialog.show(clearMode = True))
-        #loadRteAct.triggered.connect(lambda:self.loadRte(clear = True))
         loadRteAct.triggered.connect(self.loadRte)
         
         
@@ -347,10 +332,7 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
 
     
         insertRteAct = insertMenu.addAction('Insert .rte...')
-        #insertRteAct.triggered.connect(lambda:self.loadRteDialog.show(clearMode = False))
-        #insertRteAct.triggered.connect(lambda:self.loadRte(clear = False))
         insertRteAct.triggered.connect(self.insertRte)
-
         insertRteAct.setToolTip('insert .rte file at row')
 
 
