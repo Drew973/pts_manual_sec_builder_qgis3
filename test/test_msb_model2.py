@@ -1,21 +1,13 @@
 
 
-import sys
-#import imp
-import importlib
+from qgis.core import QgsProject
+import manual_sec_builder
 
-
-p = r'C:\Users\drew.bennett\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\manual_sec_builder'
+#p = r'C:\Users\drew.bennett\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\manual_sec_builder'
 
 if __name__=='__console__':
-    #if not p in sys.path:
-       # sys.path.append(p)
-        
-    from qgis.core import QgsProject
-    import manual_sec_builder
-
+  
     #imp.reload(manual_sec_builder)
-    importlib.reload(manual_sec_builder)
     #from rte import rte
    # imp.reload(rte)
     

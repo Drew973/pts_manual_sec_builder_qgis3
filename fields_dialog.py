@@ -1,6 +1,5 @@
 from PyQt5.QtWidgets import QDialog,QFormLayout,QDialogButtonBox
-from qgis.PyQt.QtCore import QSettings
-from qgis.gui import QgsFileWidget,QgsFieldComboBox
+from qgis.gui import QgsFieldComboBox
 
 
 

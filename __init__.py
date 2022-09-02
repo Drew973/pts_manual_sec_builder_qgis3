@@ -1,8 +1,7 @@
 #https://stackoverflow.com/questions/16981921/relative-imports-in-python-3
 # For relative imports to work in Python 3.6
-import os, sys; sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 
-
+#changing sys.path can affect other plugins and manager!
 
 # noinspection PyPep8Naming
 def classFactory(iface):  # pylint: disable=invalid-name

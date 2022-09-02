@@ -13,14 +13,12 @@ from qgis.PyQt.QtWidgets import QDockWidget,QFileDialog,QMessageBox,QMenuBar,QMe
 from qgis.PyQt.QtGui import QKeySequence
 
 from manual_sec_builder.makeRteDialog import makeRteDialog
-#from . loadRteDialog import loadRteDialog
-
 from manual_sec_builder.msb_model import msb_model,layer_functions
 
 import logging
 
 logFile = os.path.join(os.path.dirname(__file__),'log.txt')
-logging.basicConfig(filename=logFile,filemode='w',encoding='utf-8', level=logging.DEBUG, force=True)
+logging.basicConfig(filename=logFile,filemode='w',encoding='utf-8', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
