@@ -19,10 +19,18 @@ import logging
 from qgis.core import QgsMapLayerProxyModel
 
 
-logFile = os.path.join(os.path.dirname(__file__),'log.txt')
-logging.basicConfig(filename=logFile,filemode='w',encoding='utf-8', level=logging.DEBUG)
-logger = logging.getLogger(__name__)
 
+#logging causing version problems, different args to basicConfig
+try:
+    logFile = os.path.join(os.path.dirname(__file__),'log.txt')
+    #logging.basicConfig(filename=logFile,filemode='w',encoding='utf-8', level=logging.DEBUG)#version problems. with encoding and force
+    logging.basicConfig(filename=logFile,filemode='w', level=logging.DEBUG)
+    
+    what_if_problem_here
+except:
+    pass
+finally:
+    logger = logging.getLogger(__name__)
 
 
 
