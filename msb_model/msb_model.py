@@ -224,10 +224,10 @@ class msbModel(QtGui.QStandardItemModel):
    #layer.getFeatures() slow and has to set up new conection every time.
    #quicker to call once to get all features
    
-   
+   #-> [rteItem]
    
     def rteItems(self,layer,fields):
-        logger.debug('rteItems(%s,%s)',layer,fields)
+    #    logger.debug('rteItems(%s,%s)',layer,fields)
         labelField = fields['label']
         
         #label:feature
@@ -254,14 +254,30 @@ class msbModel(QtGui.QStandardItemModel):
                  
         return items
             
-            
-    def saveRte(self,f,layer,fields):      
+            #->str
+    def saveRte(self,f,layer,fields):
+        
+        result = ''
+        
         if layer is None:
-            raise ValueError('need layer to load rte')
-            
+            return 'Need layer to load rte'
+        
+        if self.rowCount() == 0:
+            return 'No sections in route'
+        
         if self.rowCount()>0:
-            rte.write_rte(self.rteItems(layer,fields),f,os.path.basename(f.name))
-            
+            items = self.rteItems(layer,fields)
+            rte.write_rte(items,f,os.path.basename(f.name))
+            result = 'manual secbuilder:saved to rte:{name}.'.format(name=f.name)
+            if len(items) > 1:
+                for i,item in enumerate(items[1:]):
+                    last = items[i]
+                    if item.start_node != last.end_node:
+                        result += '\nWarning End node of {last} != start node of {sec}.'.format(last = last.section_label,sec = item.section_label)
+        
+        return result
+                        
+                    
             
     #file is open file like with writeLines() and .name attribute
     #layer and fields only required for rte

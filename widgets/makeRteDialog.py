@@ -72,20 +72,16 @@ class makeRteDialog(QDialog):
   
             
     def save(self):
-        
         to = self.fileWidget.filePath()
-
         if not to:
             iface.messageBar().pushMessage("manual secbuilder:no file selected",duration = 4)
             return
-            
         fields = self.fields()
         fields.update({'label':self.parent().getLabelField()})
-
         layer = self.parent().getLayer()
-        
         if not layer is None:
             with open(self.fileWidget.filePath(),'w') as f:
-                self.model.saveRte(f,layer = layer,fields = fields)
-                iface.messageBar().pushMessage("manual secbuilder:saved to rte:"+to,duration = 4)
+                r = self.model.saveRte(f,layer = layer,fields = fields)
+                if r:
+                    iface.messageBar().pushMessage(str(r),duration = 4)
 

@@ -26,7 +26,7 @@ try:
     #logging.basicConfig(filename=logFile,filemode='w',encoding='utf-8', level=logging.DEBUG)#version problems. with encoding and force
     logging.basicConfig(filename=logFile,filemode='w', level=logging.DEBUG)
     
-    what_if_problem_here
+#    what_if_problem_here
 except:
     pass
 finally:
