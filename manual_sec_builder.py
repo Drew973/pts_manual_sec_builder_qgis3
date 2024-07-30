@@ -150,7 +150,9 @@ class manual_sec_builder:
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        icon_path = ':/plugins/manual_sec_builder/icon.png'
+   #     icon_path = ':/plugins/manual_sec_builder/icon.png'#resource path. pluginBuilder does this.
+        icon_path = os.path.join(os.path.dirname(__file__),'icon.png')#this seems way simpler
+
         self.add_action(
             icon_path,
             text=self.tr(u'manual sec builder'),

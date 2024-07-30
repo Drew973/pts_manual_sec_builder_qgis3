@@ -8,9 +8,6 @@ from . rte import rte,feature_to_rte_item,read
 
 import os
 
-import logging
-logger = logging.getLogger(__name__)
-
 
 
 class msbModel(QtGui.QStandardItemModel):
@@ -101,7 +98,7 @@ class msbModel(QtGui.QStandardItemModel):
 #returns number of rows added.
 #inserts new rows at row. Clears if None.
     def loadRte(self,f,row=None):
-        logger.debug('loadRte(%s)',f)
+   #     logger.debug('loadRte(%s)',f)
 
         if row is None:
             self.clear()
@@ -132,7 +129,7 @@ class msbModel(QtGui.QStandardItemModel):
                 
                 
                 
-        logger.debug('sectionDirections:%s',sectionDirections)
+  #      logger.debug('sectionDirections:%s',sectionDirections)
 
 
         for r in R2_1s:#these are in order or route

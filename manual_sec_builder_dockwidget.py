@@ -15,24 +15,9 @@ from qgis.PyQt.QtGui import QKeySequence
 from manual_sec_builder.widgets.makeRteDialog import makeRteDialog
 from manual_sec_builder.msb_model import msb_model,layer_functions
 
-import logging
 from qgis.core import QgsMapLayerProxyModel
 
-
-
-#logging causing version problems, different args to basicConfig
-try:
-    logFile = os.path.join(os.path.dirname(__file__),'log.txt')
-    #logging.basicConfig(filename=logFile,filemode='w',encoding='utf-8', level=logging.DEBUG)#version problems. with encoding and force
-    logging.basicConfig(filename=logFile,filemode='w', level=logging.DEBUG)
-    
-#    what_if_problem_here
-except:
-    pass
-finally:
-    logger = logging.getLogger(__name__)
-
-
+from .resources import qt_resource_data# icon not shown without runnng resorces.py. why?
 
 def fixHeaders(path):
     with open(path) as f:
