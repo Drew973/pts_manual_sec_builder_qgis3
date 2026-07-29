@@ -15,6 +15,9 @@ from qgis.PyQt.QtGui import QKeySequence
 from manual_sec_builder.widgets.makeRteDialog import makeRteDialog
 from manual_sec_builder.msb_model import msb_model,layer_functions
 
+from manual_sec_builder.save_scanner_rte_dialog import saveScannerRteDialog
+
+
 from qgis.core import QgsMapLayerProxyModel
 
 from .resources import qt_resource_data# icon not shown without runnng resorces.py. why?
@@ -31,9 +34,19 @@ def fixHeaders(path):
         f.write(t)
 
 
+VERSION = 3.3
+
 uiPath = os.path.join(os.path.dirname(__file__), 'manual_sec_builder_dockwidget_base.ui')
 fixHeaders(uiPath)
 FORM_CLASS, _ = uic.loadUiType(uiPath)
+
+
+SEC_FILTER = 'sec file(*.sec)'
+SR_FILTER = 'sr file(*.sr)'
+TRACS_RTE_FILTER  = 'TRACS rte(*.rte)'
+SCANNER_RTE_FILTER = 'SCANNER rte(*.rte)'
+
+
 
 
 class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
@@ -43,10 +56,13 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
     def __init__(self, parent = None):
         super(manual_sec_builderDockWidget, self).__init__(parent)
         self.setupUi(self)
-        
+        self.setWindowTitle('manual sec builder {v}'.format(v = VERSION))
         self.model = msb_model.msbModel(self)
         
-        self.rteDialog = makeRteDialog(parent = self,model = self.model,layerBox=self.layerBox)#persistant.
+        self.rteDialog = makeRteDialog(parent = self , model = self.model , layerBox = self.layerBox)#persistant.
+        
+        self.saveScannerRteDialog = saveScannerRteDialog(parent = self , model = self.model)#persistant.
+        
         
         self.sectionBox.setFilters(QgsFieldProxyModel.String)
         self.sectionBox.activated.connect(self.labelFieldSet)
@@ -69,6 +85,48 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         initDragAndDrop(self.tableView)
 
         self.model.countChanged.connect(self.rowCountChanged)
+
+
+
+
+
+    def openFile(self , clear: bool = False):
+        if clear:
+            row = None
+            cap = 'load route file'
+        else:
+            row = self.rowBox.value()
+            cap = 'insert route file'
+                
+                
+        filt = ';;'.join([SEC_FILTER,SR_FILTER,TRACS_RTE_FILTER,SCANNER_RTE_FILTER])
+        p , ext = QFileDialog.getOpenFileName(caption = cap , filter = filt , directory = self.lastFolder())
+        
+        if p:
+            self.setFolder(p)
+
+            
+            if ext == SEC_FILTER:
+                #use direction from 'reversed' box
+                with open(p,'r') as f:
+                    self.model.loadSec(f = f,rev = self.rev() , row = row)
+ 
+            if ext == SR_FILTER:
+                with open(p,'r') as f:
+                    self.model.loadSr(f,row)
+
+            if ext == TRACS_RTE_FILTER:
+                #leave reversed column blank
+                with open(p,'r') as f:
+                    self.model.loadRte(f = f,row = None)
+                    iface.messageBar().pushMessage("manual secbuilder:loaded "+p,duration = 4)  
+                
+            if ext == SCANNER_RTE_FILTER:
+                #leave reversed column blank
+                self.model.loadScannerRte(p)
+
+        #iface.messageBar().pushMessage("manual secbuilder:inserted "+p,duration = 4)                    
+
 
 
     def layerChange(self,layer):
@@ -140,49 +198,8 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
 
             sec = sf[0][field]
             self.addRow(label = sec,isReversed = self.rev(),rowNumber = self.rowBox.value()-1)
-
-
-
-    def loadSec(self,clear = False):
-        p = QFileDialog.getOpenFileName(caption = 'load .rte',filter = '*.sec;;*',directory = self.lastFolder())[0]
-        
-        if p:
-            self.setFolder(p)
-            
-            if clear:
-                row = None
-            else:
-                row = self.rowBox.value()
-            
-            with open(p,'r') as f:
-                self.model.loadSec(f = f,rev = self.rev(),row = row)
-                
-            iface.messageBar().pushMessage("manual secbuilder:loaded "+p,duration = 4)
-
-
-    def loadRte(self):
-
-        p = QFileDialog.getOpenFileName(caption = 'load .rte',filter = '*.rte;;*')[0]
-        
-        if p:
-            self.setFolder(p)
-            
-            with open(p,'r') as f:
-                self.model.loadRte(f = f,row = None)
-                iface.messageBar().pushMessage("manual secbuilder:loaded "+p,duration = 4)  
                 
                 
-    def insertRte(self):
-                
-        p = QFileDialog.getOpenFileName(caption = 'load .rte',filter = '*.rte;;*')[0]
-        
-        if p:
-            self.setFolder(p)
-            
-            with open(p,'r') as f:
-                self.model.loadRte(f = f,row = self.rowBox.value())
-                iface.messageBar().pushMessage("manual secbuilder:inserted "+p,duration = 4)                    
-        
 
 
 #reversed selected?
@@ -204,21 +221,6 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
 
 
         
-    def loadSr(self,row = None,clear = False):
-        p = QFileDialog.getOpenFileName(caption = 'load .rte',filter = '*.sr;;*',directory = self.lastFolder())[0]
-        if p:
-            self.setFolder(p)
-
-            if clear:
-                self.model.clear()
-                
-            with open(p,'r') as f:
-                self.model.loadSr(f,row)
-                
-            iface.messageBar().pushMessage("manual secbuilder:loaded "+p,duration = 4)
-        
-
-
     def removeAll(self):
         response = QMessageBox.question(self,'remove all','remove all sections from table?',QMessageBox.Yes | QMessageBox.No)
         if response ==  QMessageBox.Yes:
@@ -226,7 +228,7 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
 
 
     def saveAsSec(self):
-        p = QFileDialog.getSaveFileName(self, 'Save File',filter = '*.sec;;*',directory = self.lastFolder())[0]
+        p = QFileDialog.getSaveFileName(self, 'Save File',filter = SEC_FILTER,directory = self.lastFolder())[0]
         if p:
 
             if self.model.rowCount() == 0:
@@ -252,7 +254,7 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
 
 
     def saveAsSr(self):
-        p = QFileDialog.getSaveFileName(self, 'Save File',filter = '*.sr;;*',directory = self.lastFolder())[0]
+        p = QFileDialog.getSaveFileName(self, 'Save File' , filter = SR_FILTER , directory = self.lastFolder())[0]
         if p:
             if self.model.rowCount() == 0:
                 iface.messageBar().pushMessage("manual secbuilder:no sections to save:",duration = 4)
@@ -300,39 +302,19 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
     def initTopMenu(self):
         topMenu = QMenuBar()       
 
+        #load#####################
+        fileMenu = topMenu.addMenu("File")
+  
+        openAct = fileMenu.addAction('Open...')
+        openAct.triggered.connect(lambda: self.openFile(clear = True))
 
-        ######################load
-        loadMenu = topMenu.addMenu("Load")
-        loadSecAct = loadMenu.addAction('Load .sec...')
-        loadSecAct.triggered.connect(lambda:self.loadSec(clear = True))
-
-        loadRteAct = loadMenu.addAction('Load .rte...')
-        loadRteAct.triggered.connect(self.loadRte)
-        
-        
-        loadSrAct = loadMenu.addAction('Load .sr...')
-        loadSrAct.triggered.connect(lambda:self.loadSr(clear = True))
-
-
-        ##################insert
+        #insert#################
         insertMenu = topMenu.addMenu("Insert")
         insertMenu.setToolTipsVisible(True)
-
-
-        insertSecAct = insertMenu.addAction('Insert .sec...')
-        insertSecAct.triggered.connect(lambda:self.loadSec(clear = False))
-        insertSecAct.setToolTip('insert .sec file using selected row and direction')
-
-    
-        insertRteAct = insertMenu.addAction('Insert .rte...')
-        insertRteAct.triggered.connect(self.insertRte)
-        insertRteAct.setToolTip('insert .rte file at row')
-
-
-        insertSrAct = insertMenu.addAction('Insert .sr...')
-        insertSrAct.triggered.connect(lambda:self.loadSr(row = self.rowBox.value(),clear = False))
-        insertSrAct.setToolTip('insert .sr file at row')
         
+        insertFileAct = insertMenu.addAction('Insert file...')
+        insertFileAct.triggered.connect(lambda: self.openFile(clear = False))
+        insertFileAct.setToolTip('Insert file at selected row')
 
         self.addFeatureAct = insertMenu.addAction('Add Selected Feature')
         self.addFeatureAct.setShortcut(QKeySequence('Alt+1'))#focus policy of dockwidget probably important here
@@ -344,8 +326,8 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         self.addDummyAct.triggered.connect(self.addDummy)
         self.addDummyAct.setToolTip('Insert dummy at row')
 
-        ############################################save
-        saveMenu = topMenu.addMenu("Save")
+        #save###########################################save
+        saveMenu = fileMenu.addMenu("Save")
         
         saveSrAct = saveMenu.addAction('Save as .sr...')
         saveSrAct.triggered.connect(self.saveAsSr)
@@ -353,11 +335,14 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
         saveSecAct = saveMenu.addAction('Save as .sec...')
         saveSecAct.triggered.connect(self.saveAsSec)
 
-        saveRteAct = saveMenu.addAction('Save as .rte...')
+        saveRteAct = saveMenu.addAction('Save as TRACS .rte...')
         saveRteAct.triggered.connect(self.rteDialog.show)
         
+        saveScannerRteAct = saveMenu.addAction('Save as SCANNER .rte...')
+        saveScannerRteAct.triggered.connect(self.saveScannerRte)
         
-        #######################help
+        
+        #help######################help
 
         helpMenu = topMenu.addMenu('Help')  
         openHelpAct = helpMenu.addAction('Open help (in your default web browser)')
@@ -365,6 +350,10 @@ class manual_sec_builderDockWidget(QDockWidget, FORM_CLASS):
 
         
         self.main_widget.layout().setMenuBar(topMenu)
+
+
+    def saveScannerRte(self):
+        self.saveScannerRteDialog.show()
 
 
 

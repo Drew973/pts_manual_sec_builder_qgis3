@@ -14,6 +14,7 @@
 
 
 <p>Tool for building and editing routes. Saves and loads routes in .sec,.rte and .sr format.</p>
+<p>Note there are 2 different specifications and formats for .rte files. TRACS and SCANNER. These are not interchangable.</p>
 
 
 
@@ -28,33 +29,44 @@
 
 
 <p>
-They can be inserted:
-<li> From .sec file (value in reversed? dropdown will be used for direction)</li>
-<li> From .rte file (direction will be found using direction field of feature with section label)</li>
-<li> From .sr file (using direction in file)</li>
-<li> From selected feature of layer(value in reversed? dropdown will be used for direction)</li>
-
-
+	They can be inserted:
+	<ul>
+		<li> From .sec file (value in reversed? dropdown will be used for direction)</li>
+		<li> From .sr file (using direction in file)</li>
+		<li> From TRACS .rte file (direction will be found using direction field of feature with section label)</li>
+		<li> From SCANNER .rte file (direction left blank)</li>
+		<li> From selected feature of layer(value in reversed? dropdown will be used for direction)</li>
+	</ul>
 </p>
 
 
-<h4 id="Routes table"> Routes table </h4>
+<h4 id="Routes table"> Route table </h4>
 
 <p>The routes table contains every section in the route(ordered consecutively) and whether it is in the forward or reversed direction.</p>
 
 <p> Right clicking the route table will produce a menu with options to:
-<li> Delete selected rows</li>
-<li> Delete all rows</li>
-<li> Select on layer(selects features of layer that are selected in routes table)</li>
-<li> Select from layer(selects rows of route table that are selected on layer)</li>
-
+	<ul>
+		<li> Delete selected rows</li>
+		<li> Delete all rows</li>
+		<li> Select on layer(selects features of layer that are selected in routes table)</li>
+		<li> Select from layer(selects rows of route table that are selected on layer)</li>
+	</ul>
+</p>
 <p> Rows can be rearranged by dragging and dropping</p>
 
 
 
+<h4 id="faq"> FAQs </h4>
+	<ul>
+		<li>'Key Error' when saving as .rte: check layer has single feature matching each non dummy section.
+		For TRACS .rte a section of 'D' is treated as a dummy.
+		 For SCANNER .rte a section of 'D' or containing 'dummy' (case insensitive) is treated as a dummy.</li>
+
+		<li>'Key Error' when loading TRACS .rte: check layer has single feature matching each non dummy section.</li>
+		</ul>
 
 
-     
+
 </body>
 
 

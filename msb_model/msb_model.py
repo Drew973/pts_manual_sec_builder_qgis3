@@ -2,11 +2,28 @@ from PyQt5 import QtGui
 
 
 from qgis.PyQt.QtCore import Qt,pyqtSignal
+from qgis.core import QgsVectorLayer,QgsGeometry,QgsPointXY,QgsFeature
 
 from . import layer_functions
 from . rte import rte,feature_to_rte_item,read
 
 import os
+
+from manual_sec_builder.scanner_rte import scanner_rte
+
+
+
+
+def startVertex(geom:QgsGeometry) -> QgsPointXY:
+    for v in geom.vertices():
+        return v
+
+
+def endVertex(geom:QgsGeometry) -> QgsPointXY:
+    for v in geom.vertices():
+        pass
+    return v
+
 
 
 
@@ -117,22 +134,26 @@ class msbModel(QtGui.QStandardItemModel):
 
 
         for line in f.readlines():
-            
+            print('line',line)
             r = read.readR2_1(line)
+            #print('r',r)
+            
+            
             if isinstance(r,dict):#valid R2_1 line
                 R2_1s.append(r)
             
             
-            r = read.readR4_1(line)
-            if isinstance(r,dict):#valid R4_1 line
-                sectionDirections[r['section_label']] = r['section_direction']
-                
-                
-                
+            r4 = read.readR4_1(line)
+            if isinstance(r4,dict):#valid R4_1 line
+                sectionDirections[r4['section_label']] = r4['section_direction']
+         
+            
+         
+            
   #      logger.debug('sectionDirections:%s',sectionDirections)
 
 
-        for r in R2_1s:#these are in order or route
+        for r in R2_1s:#these are in order of route
             sec = r['section_label']
             
             if sec:
@@ -163,8 +184,93 @@ class msbModel(QtGui.QStandardItemModel):
         
 
 
+    def loadScannerRte(self , file:str):
+        row = 0
+        with open(file,'r') as f:
+            for line in f.readlines():
+                try:
+                    r = scanner_rte.R2_1.from_line(line)
+                    self.addRow(rowNumber = row , label = r.section_label)
+                except Exception as e:
+                    print(e)
+                
+                row +=1
+                    
+                
+    def saveScannerRte(self , file:str , layer:QgsVectorLayer , labelField:str , lengthField:str , startNodeField:str , endNodeField:str , descriptionField:str = '' ):
+        
+        #(nodeName:str , x:float , y:float)
+        def nodeFromFeature(f: QgsFeature , reverseDirection: bool) -> tuple[str,float,float]:
+            if reverseDirection:
+                p = endVertex(f.geometry())
+                return (f[endNodeField] , p.x() , p.y())
+            else:
+                p = startVertex(f.geometry())
+                return (f[startNodeField] , p.x() , p.y())
+        
+        
+        rc = self.rowCount()
+        with open(file,'w') as f:
+            #write R1_1
+            name = os.path.splitext(os.path.basename(file))[0]
+            header = scanner_rte.R1_1(route_id = name , number_of_lanes = rc)
+            #f.write(header.to_line())
+            print(header.to_line() , file = f)
+            
+            
+            lastNode = ('' , 0.0 , 0.0)
+            
+            #write R2_1 s
+            for row in range(rc):
+                sec = str(self.index(row , 0).data())
+                
+                #row is dummy
+                if 'dummy' in sec.lower() or sec.strip() == 'D':
+                    rec = scanner_rte.R2_1(section_label = sec,
+                        section_length = 0.0,
+                        start_node = lastNode[0],
+                        xsp = '',
+                        start_x = lastNode[1],
+                        start_y = lastNode[2],
+                        section_description = 'Dummy'
+                    )
+                    print(rec.to_line() , file = f)
+                    
+                    
+                else:
+                    feat = layer_functions.findSection(layer = layer , field = labelField , section = sec)
+                    
+                    reverseDirection:bool = bool(self.index(row , 1).data())
+                    #print('reverseDirection' , type(reverseDirection))
+                    lastNode = nodeFromFeature(feat , reverseDirection)
+                    start_node , start_x , start_y = lastNode
+                        
+                    if descriptionField:
+                        section_description = feat[descriptionField]
+                    else:
+                        section_description = ''
+                    
+                    rec = scanner_rte.R2_1(section_label = sec,
+                        section_length = float(feat[lengthField]),
+                        start_node = start_node,
+                        xsp = '',
+                        start_x = start_x,
+                        start_y = start_y,
+                        section_description = section_description
+                    )
+                    print(rec.to_line() , file = f)
+                    lastNode = nodeFromFeature(feat , not reverseDirection)
+
+            
+            #node from last feature. opposite direction to used
+            node,x,y = nodeFromFeature(feat , not bool(reverseDirection))
+            footer = scanner_rte.R3_1(end_node = node , end_x = x , end_y = y)
+            print(footer.to_line() , file = f)
+
+
+
     def addDummy(self,row):
-        self.addRow(label='D',isReversed=None,rowNumber=row)
+        self.addRow(label = 'D' , isReversed = None , rowNumber = row)
 
 
 
@@ -251,6 +357,9 @@ class msbModel(QtGui.QStandardItemModel):
                  
         return items
             
+    
+    
+    
             #->str
     def saveRte(self,f,layer,fields):
         

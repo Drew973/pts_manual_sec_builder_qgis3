@@ -39,17 +39,20 @@ def getCharactors(line,start,end):
 
 
 
-def readR2_1(line):
+def readR2_1(line: str):
     try:
         line = line.strip('\n')
+        n = len(line)
         
-        
-        if len(line)<116:
-            return RTEReadError(line,'R2_1','R3_1 has <116 charactors')
+        if n < 116:
+            return RTEReadError(line,'R2_1','<116 charactors (has {n})'.format(n = n))
             
          
-        if len(line)>116:
-            return RTEReadError(line,'R2_1','R3_1 has >116 charactors')
+        if n > 116:
+            end = line[116:].strip()#last charactors with spaces removed
+            if len(end) > 0:
+                return RTEReadError(line,'R2_1','>116 non " " charactors(has {n})'.format(n=n))
+        
         
         r = {}
         r['section_label'] = line[0:30].strip()
